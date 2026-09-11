@@ -18,7 +18,48 @@ export const BAMBAI_LOGO = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.or
 
 export const THE_TABLE_LOGO = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 80" fill="none"><rect width="320" height="80" rx="4" fill="%234a1525"/><rect x="26" y="26" width="28" height="28" stroke="%23e2b4bd" stroke-width="1.5" fill="none"/><circle cx="40" cy="40" r="4" fill="%23e2b4bd"/><text x="68" y="38" fill="%23ffffff" font-family="'Playfair Display', serif" font-size="20" font-weight="600" letter-spacing="4">THE TABLE</text><text x="68" y="54" fill="%23e2b4bd" font-family="'Plus Jakarta Sans', sans-serif" font-size="9" font-weight="500" letter-spacing="3">CONTEMPORARY CUISINE</text></svg>`;
 
+export const RADHA_LOGO = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 80" fill="none"><rect width="320" height="80" rx="4" fill="%23831843"/><circle cx="40" cy="40" r="18" stroke="%23f59e0b" stroke-width="2" fill="none"/><path d="M30 40 L50 40 M40 30 L40 50" stroke="%23f59e0b" stroke-width="2"/><text x="68" y="38" fill="%23ffffff" font-family="'Playfair Display', serif" font-size="20" font-weight="700" letter-spacing="4">RADHA</text><text x="68" y="54" fill="%23f59e0b" font-family="'Plus Jakarta Sans', sans-serif" font-size="9" font-weight="600" letter-spacing="2.5">AUTHENTIC DINING & SWEETS</text></svg>`;
+
 export const INITIAL_RESTAURANTS: Restaurant[] = [
+  {
+    id: 'rest_radha',
+    slug: 'radha',
+    name: 'Radha',
+    brandTitle: 'Radha Dining & Sweets',
+    tagline: 'Pure Flavors • Royal Hospitality',
+    description: 'Welcome to Radha. Experience authentic vegetarian delicacies, gourmet sweets, and royal hospitality.',
+    cuisine: 'Authentic Indian Fine Dining',
+    address: 'High Street Avenue, Commercial Hub',
+    city: 'Mumbai, Maharashtra',
+    phone: '+91 98200 88990',
+    email: 'contact@radhadining.com',
+    website: 'https://radhadining.com',
+    googleReviewUrl: 'https://g.page/r/radhadining/review',
+    status: 'active',
+    plan: 'Enterprise',
+    mrr: 9999,
+    createdAt: '2026-03-01',
+    branding: {
+      primaryColor: '#831843',
+      secondaryColor: '#f59e0b',
+      accentColor: '#fdf2f8',
+      surfaceColor: '#ffffff',
+      textColor: '#1c1917',
+      fontFamily: 'Playfair Display, serif',
+      logoUrl: RADHA_LOGO,
+      heroImageUrl: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=1600&q=85',
+      coverImageUrl: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=1600&q=85',
+    },
+    socials: {
+      instagram: '@radhadining',
+      facebook: 'radhadining',
+      whatsapp: '+919820088990',
+      tiktok: '@radhadining',
+      youtube: '@radhadining',
+    },
+    hashtags: ['#RadhaDining', '#PureTaste', '#EnsembleDining'],
+    tablesCount: 20,
+  },
   {
     id: 'rest_heritage',
     slug: 'heritage',
@@ -139,6 +180,7 @@ export const INITIAL_RESTAURANTS: Restaurant[] = [
 ];
 
 export const INITIAL_MENU_ITEMS: Record<string, MenuItem[]> = {
+  rest_radha: [],
   rest_heritage: [
     {
       id: 'dish_h1',
@@ -384,6 +426,56 @@ export const INITIAL_MENU_ITEMS: Record<string, MenuItem[]> = {
 };
 
 export const INITIAL_REWARD_ITEMS: Record<string, RewardWheelItem[]> = {
+  rest_radha: [
+    {
+      id: 'rew_radha_1',
+      label: '10% OFF',
+      discountType: 'percentage',
+      discountValue: 10,
+      description: '10% welcome discount on total dining bill',
+      probability: 40,
+      color: '#831843',
+      textColor: '#ffffff',
+      active: true,
+      expiryDays: 7,
+    },
+    {
+      id: 'rew_radha_2',
+      label: '15% OFF',
+      discountType: 'percentage',
+      discountValue: 15,
+      description: '15% discount on food & beverages',
+      probability: 30,
+      color: '#9d174d',
+      textColor: '#ffffff',
+      active: true,
+      expiryDays: 7,
+    },
+    {
+      id: 'rew_radha_3',
+      label: 'Free Royal Dessert',
+      discountType: 'free_item',
+      discountValue: 150,
+      description: 'Complimentary chef special sweet platter',
+      probability: 20,
+      color: '#b91c1c',
+      textColor: '#ffffff',
+      active: true,
+      expiryDays: 14,
+    },
+    {
+      id: 'rew_radha_4',
+      label: '₹200 Voucher',
+      discountType: 'fixed',
+      discountValue: 200,
+      description: 'Flat ₹200 off on dining bill above ₹1,000',
+      probability: 10,
+      color: '#f59e0b',
+      textColor: '#1c1917',
+      active: true,
+      expiryDays: 14,
+    },
+  ],
   rest_heritage: [
     {
       id: 'rew_1',
@@ -549,6 +641,7 @@ export const INITIAL_REWARD_ITEMS: Record<string, RewardWheelItem[]> = {
 };
 
 export const INITIAL_OFFERS: Record<string, Offer[]> = {
+  rest_radha: [],
   rest_heritage: [
     {
       id: 'off_1',
@@ -599,6 +692,7 @@ export const INITIAL_OFFERS: Record<string, Offer[]> = {
 };
 
 export const INITIAL_CUSTOMERS: Record<string, Customer[]> = {
+  rest_radha: [],
   rest_heritage: [
     {
       id: 'cust_1',
@@ -690,6 +784,7 @@ export const INITIAL_CUSTOMERS: Record<string, Customer[]> = {
 };
 
 export const INITIAL_REVIEWS: Record<string, Review[]> = {
+  rest_radha: [],
   rest_heritage: [
     {
       id: 'rev_1',
@@ -750,6 +845,7 @@ export const INITIAL_REVIEWS: Record<string, Review[]> = {
 };
 
 export const INITIAL_SOCIAL_SUBMISSIONS: Record<string, SocialSubmission[]> = {
+  rest_radha: [],
   rest_heritage: [
     {
       id: 'soc_1',
@@ -791,6 +887,14 @@ export const INITIAL_SOCIAL_SUBMISSIONS: Record<string, SocialSubmission[]> = {
 };
 
 export const INITIAL_TABLES: Record<string, TableRecord[]> = {
+  rest_radha: Array.from({ length: 20 }, (_, i) => ({
+    tableNumber: i + 1,
+    restaurantId: 'rest_radha',
+    qrUrl: `radha.ensemble.com/t/${i + 1}`,
+    status: 'available',
+    totalScans: 0,
+    lastScanned: 'Never',
+  })),
   rest_heritage: Array.from({ length: 30 }, (_, i) => ({
     tableNumber: i + 1,
     restaurantId: 'rest_heritage',
@@ -802,6 +906,7 @@ export const INITIAL_TABLES: Record<string, TableRecord[]> = {
 };
 
 export const INITIAL_CAMPAIGNS: Record<string, Campaign[]> = {
+  rest_radha: [],
   rest_heritage: [
     {
       id: 'camp_1',

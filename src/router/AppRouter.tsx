@@ -12,7 +12,7 @@ import { Shield, UtensilsCrossed, Bell, ExternalLink, ArrowRight } from 'lucide-
 
 export const AppRouter: React.FC = () => {
   const { user, isLoading } = useAuth();
-  const { restaurants, setActiveRestaurantSlug, setActiveTable } = useTenant();
+  const { restaurants, setActiveRestaurantSlug, setActiveTable, activeRestaurantSlug, ensureRestaurantExists } = useTenant();
 
   const [currentPath, setCurrentPath] = useState<string>(window.location.pathname);
 
@@ -161,16 +161,24 @@ export const AppRouter: React.FC = () => {
 
   // 7. PUBLIC CUSTOMER RESTAURANT EXPERIENCE (/:restaurantSlug or /:restaurantSlug/t/:tableNumber)
   // Match path pattern: /:slug or /:slug/t/:tableNumber
+  const RESERVED_PREFIXES = ['master', 'restaurant', 'captain', 'api', 'auth', 'login', 'admin', 'preview'];
   const pathParts = cleanPath.split('/').filter(Boolean);
-  if (pathParts.length > 0) {
+  if (pathParts.length > 0 && !RESERVED_PREFIXES.includes(pathParts[0])) {
     const candidateSlug = pathParts[0];
-    const matchedRestaurant = restaurants.find((r) => r.slug.toLowerCase() === candidateSlug);
+    let matchedRestaurant = restaurants.find((r) => r.slug.toLowerCase() === candidateSlug);
+
+    // If not found in current browser localStorage (e.g. guest scanning on phone), auto-provision
+    if (!matchedRestaurant && ensureRestaurantExists) {
+      matchedRestaurant = ensureRestaurantExists(candidateSlug);
+    }
 
     if (matchedRestaurant) {
       // Sync tenant context to this restaurant
-      setActiveRestaurantSlug(matchedRestaurant.slug);
+      if (activeRestaurantSlug !== matchedRestaurant.slug) {
+        setActiveRestaurantSlug(matchedRestaurant.slug);
+      }
 
-      // Check table number in path (e.g. /heritage/t/12)
+      // Check table number in path (e.g. /radha/t/1)
       if (pathParts[1] === 't' && pathParts[2]) {
         const tableNum = parseInt(pathParts[2], 10);
         if (!isNaN(tableNum) && tableNum > 0) {

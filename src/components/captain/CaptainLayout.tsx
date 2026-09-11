@@ -69,6 +69,16 @@ export const CaptainLayout: React.FC = () => {
   const [selectedTableNumber, setSelectedTableNumber] = useState<number | null>(() => {
     return activeTables[0]?.tableNumber || 1;
   });
+
+  // Automatically sync selectedTableNumber when activeRestaurant or activeTables update
+  useEffect(() => {
+    if (activeTables.length > 0) {
+      if (!selectedTableNumber || !activeTables.some((t) => t.tableNumber === selectedTableNumber)) {
+        setSelectedTableNumber(activeTables[0].tableNumber);
+      }
+    }
+  }, [activeRestaurant.id, activeTables, selectedTableNumber]);
+
   const [isOfflineSimulated, setIsOfflineSimulated] = useState(false);
   const [filterStatus, setFilterStatus] = useState<'all' | 'occupied' | 'bill_requested' | 'paid_pending_reset'>('all');
   const [showAddDishModal, setShowAddDishModal] = useState(false);
@@ -85,7 +95,7 @@ export const CaptainLayout: React.FC = () => {
   );
   const selectedTableRecord = activeTables.find((t) => t.tableNumber === selectedTableNumber);
   const tableOrders = orders.filter(
-    (o) => (o.restaurantId ? o.restaurantId === activeRestaurantId : true) && o.tableNumber === selectedTableNumber && o.status !== 'cancelled'
+    (o) => o.restaurantId === activeRestaurantId && o.tableNumber === selectedTableNumber && o.status !== 'cancelled'
   );
 
   // Prep timer selection state for confirming orders

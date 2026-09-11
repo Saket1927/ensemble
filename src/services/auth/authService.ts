@@ -73,6 +73,33 @@ export const DEFAULT_SEED_ACCOUNTS: StaffAccount[] = [
     status: 'active',
     createdAt: new Date('2026-02-01').toISOString(),
   },
+  {
+    id: 'user_radha_owner',
+    loginId: 'radha.owner',
+    email: 'owner@radha.com',
+    name: 'Radha Owner',
+    passwordHash: '',
+    role: 'owner',
+    restaurantId: 'rest_radha',
+    restaurantName: 'Radha',
+    restaurantSlug: 'radha',
+    status: 'active',
+    createdAt: new Date('2026-03-01').toISOString(),
+  },
+  {
+    id: 'user_radha_captain',
+    loginId: 'captain.radha',
+    email: 'captain@radha.com',
+    name: 'Radha Floor Captain',
+    passwordHash: '',
+    role: 'captain',
+    restaurantId: 'rest_radha',
+    restaurantName: 'Radha',
+    restaurantSlug: 'radha',
+    assignedTables: Array.from({ length: 20 }, (_, i) => i + 1),
+    status: 'active',
+    createdAt: new Date('2026-03-01').toISOString(),
+  },
 ];
 
 class AuthService {
@@ -83,18 +110,33 @@ class AuthService {
 
     // Load or seed staff accounts
     const existingRaw = localStorage.getItem(STORAGE_KEYS.STAFF_ACCOUNTS);
-    if (!existingRaw) {
-      // Initialize hashes for seed accounts
-      const hashedSeeds: StaffAccount[] = [];
-      for (const account of DEFAULT_SEED_ACCOUNTS) {
+    let accounts: StaffAccount[] = [];
+    if (existingRaw) {
+      try {
+        accounts = JSON.parse(existingRaw);
+      } catch {
+        accounts = [];
+      }
+    }
+
+    let updated = false;
+    for (const seed of DEFAULT_SEED_ACCOUNTS) {
+      const exists = accounts.some(
+        (a) => a.loginId.toLowerCase() === seed.loginId.toLowerCase() || (seed.restaurantSlug && a.restaurantSlug === seed.restaurantSlug && a.role === seed.role)
+      );
+      if (!exists) {
         let plain = 'admin123';
-        if (account.role === 'owner') plain = 'test password';
-        if (account.role === 'captain') plain = 'test password';
+        if (seed.role === 'owner') plain = 'test password';
+        if (seed.role === 'captain') plain = 'test password';
 
         const hash = await hashPassword(plain);
-        hashedSeeds.push({ ...account, passwordHash: hash });
+        accounts.push({ ...seed, passwordHash: hash });
+        updated = true;
       }
-      localStorage.setItem(STORAGE_KEYS.STAFF_ACCOUNTS, JSON.stringify(hashedSeeds));
+    }
+
+    if (updated || !existingRaw) {
+      localStorage.setItem(STORAGE_KEYS.STAFF_ACCOUNTS, JSON.stringify(accounts));
     }
     this.initialized = true;
   }
@@ -139,9 +181,17 @@ class AuthService {
     const cleanId = loginIdOrEmail.trim().toLowerCase();
 
     // Find account by loginId or email
-    const account = accounts.find(
+    let account = accounts.find(
       (a) => a.loginId.toLowerCase() === cleanId || a.email.toLowerCase() === cleanId
     );
+
+    if (!account) {
+      if (cleanId === 'radha' || cleanId === 'radha.owner') {
+        account = accounts.find((a) => a.restaurantSlug === 'radha' && (a.role === 'owner' || a.role === 'manager'));
+      } else if (cleanId === 'captain.radha' || cleanId === 'radha.captain' || cleanId === 'radha.captain1') {
+        account = accounts.find((a) => a.restaurantSlug === 'radha' && a.role === 'captain');
+      }
+    }
 
     if (!account) {
       return { success: false, error: 'Account not found with this Login ID or Email.' };

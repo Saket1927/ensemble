@@ -170,53 +170,71 @@ export const OverviewTab: React.FC<{ onNavigate: (tab: RestaurantTab) => void }>
                 Today's Dining Traffic By Hour
               </h3>
               <p className="text-xs text-slate-500">
-                Peak table scan hours occur between 1:00 PM – 3:00 PM and 8:00 PM – 10:30 PM.
+                {totalScans > 0
+                  ? 'Peak table scan hours occur between 1:00 PM – 3:00 PM and 8:00 PM – 10:30 PM.'
+                  : 'Hourly traffic telemetry activates in real-time as guests scan table QR standees.'}
               </p>
             </div>
-            <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
-              Live Feed
+            <span className={`text-xs font-semibold px-2.5 py-1 rounded-full border ${
+              totalScans > 0
+                ? 'text-emerald-600 bg-emerald-50 border-emerald-200'
+                : 'text-slate-500 bg-slate-50 border-slate-200'
+            }`}>
+              {totalScans > 0 ? 'Live Feed' : 'Idle (0 Scans)'}
             </span>
           </div>
 
-          {/* Bar chart mock */}
-          <div className="h-44 flex items-end justify-between gap-2 pt-4 px-2 border-b border-slate-100">
-            {[
-              { hour: '12 PM', height: '40%', scans: 14 },
-              { hour: '1 PM', height: '85%', scans: 34 },
-              { hour: '2 PM', height: '95%', scans: 41 },
-              { hour: '3 PM', height: '50%', scans: 18 },
-              { hour: '4 PM', height: '20%', scans: 8 },
-              { hour: '5 PM', height: '25%', scans: 10 },
-              { hour: '6 PM', height: '45%', scans: 19 },
-              { hour: '7 PM', height: '70%', scans: 28 },
-              { hour: '8 PM', height: '100%', scans: 48 },
-              { hour: '9 PM', height: '90%', scans: 42 },
-              { hour: '10 PM', height: '60%', scans: 24 },
-            ].map((slot, index) => (
-              <div key={index} className="flex-1 flex flex-col items-center group">
-                <span className="text-[9px] font-mono text-slate-400 opacity-0 group-hover:opacity-100 transition">
-                  {slot.scans}
-                </span>
-                <div
-                  className="w-full bg-slate-200 rounded-t group-hover:bg-amber-600 transition-all cursor-pointer"
-                  style={{
-                    height: slot.height,
-                    backgroundColor: slot.height === '100%' ? activeRestaurant.branding.primaryColor : undefined,
-                  }}
-                />
-                <span className="text-[9px] font-mono text-slate-400 mt-2 whitespace-nowrap">
-                  {slot.hour}
-                </span>
+          {/* Bar chart or clean empty state */}
+          {totalScans === 0 ? (
+            <div className="h-44 flex flex-col items-center justify-center text-center p-6 bg-slate-50/70 rounded-xl border border-dashed border-slate-200">
+              <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 mb-2">
+                <QrCode className="w-5 h-5" />
               </div>
-            ))}
-          </div>
+              <p className="text-xs font-bold text-slate-700">No Scan Activity Recorded Today</p>
+              <p className="text-[11px] text-slate-400 max-w-sm mt-0.5">
+                Tables 1 through {activeTables.length} are provisioned and awaiting guests. Scans will plot here hour-by-hour in real time.
+              </p>
+            </div>
+          ) : (
+            <div className="h-44 flex items-end justify-between gap-2 pt-4 px-2 border-b border-slate-100">
+              {[
+                { hour: '12 PM', height: '40%', scans: 14 },
+                { hour: '1 PM', height: '85%', scans: 34 },
+                { hour: '2 PM', height: '95%', scans: 41 },
+                { hour: '3 PM', height: '50%', scans: 18 },
+                { hour: '4 PM', height: '20%', scans: 8 },
+                { hour: '5 PM', height: '25%', scans: 10 },
+                { hour: '6 PM', height: '45%', scans: 19 },
+                { hour: '7 PM', height: '70%', scans: 28 },
+                { hour: '8 PM', height: '100%', scans: 48 },
+                { hour: '9 PM', height: '90%', scans: 42 },
+                { hour: '10 PM', height: '60%', scans: 24 },
+              ].map((slot, index) => (
+                <div key={index} className="flex-1 flex flex-col items-center group">
+                  <span className="text-[9px] font-mono text-slate-400 opacity-0 group-hover:opacity-100 transition">
+                    {slot.scans}
+                  </span>
+                  <div
+                    className="w-full bg-slate-200 rounded-t group-hover:bg-amber-600 transition-all cursor-pointer"
+                    style={{
+                      height: slot.height,
+                      backgroundColor: slot.height === '100%' ? activeRestaurant.branding.primaryColor : undefined,
+                    }}
+                  />
+                  <span className="text-[9px] font-mono text-slate-400 mt-2 whitespace-nowrap">
+                    {slot.hour}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
 
           <div className="flex items-center justify-between text-xs text-slate-500 pt-1">
             <span className="flex items-center space-x-1.5">
               <span className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: activeRestaurant.branding.primaryColor }} />
-              <span>Dinner Peak (48 scans / hr)</span>
+              <span>{totalScans > 0 ? 'Dinner Peak (48 scans / hr)' : 'Floor Readiness: 100%'}</span>
             </span>
-            <span>Estimated Table Turnover: 1.8x</span>
+            <span>{totalScans > 0 ? 'Estimated Table Turnover: 1.8x' : 'Ready for first guest scan'}</span>
           </div>
         </div>
 
@@ -235,33 +253,42 @@ export const OverviewTab: React.FC<{ onNavigate: (tab: RestaurantTab) => void }>
           </div>
 
           <div className="space-y-3">
-            {activeMenuItems.slice(0, 4).map((dish) => (
-              <div
-                key={dish.id}
-                className="flex items-center space-x-3 p-2 rounded-xl hover:bg-slate-50 transition border border-slate-100"
-              >
-                <img
-                  src={dish.imageUrl}
-                  alt={dish.name}
-                  className="w-12 h-12 rounded-lg object-cover shrink-0"
-                />
-                <div className="flex-1 min-w-0">
-                  <div className="text-xs font-bold text-slate-900 truncate">
-                    {dish.name}
-                  </div>
-                  <div className="text-[11px] text-slate-400">
-                    {dish.category} • ₹{dish.price}
-                  </div>
-                </div>
-                <div className="text-right">
-                  <div className="text-xs font-bold text-amber-600 flex items-center space-x-0.5">
-                    <span>★</span>
-                    <span>{dish.rating}</span>
-                  </div>
-                  <div className="text-[9px] text-slate-400">Guest favorite</div>
-                </div>
+            {activeMenuItems.length === 0 ? (
+              <div className="p-6 text-center bg-slate-50/70 rounded-xl border border-dashed border-slate-200">
+                <p className="text-xs font-semibold text-slate-600">No dishes on menu yet</p>
+                <p className="text-[11px] text-slate-400 mt-0.5">
+                  Add items in Menu Management to start showcasing rated dishes.
+                </p>
               </div>
-            ))}
+            ) : (
+              activeMenuItems.slice(0, 4).map((dish) => (
+                <div
+                  key={dish.id}
+                  className="flex items-center space-x-3 p-2 rounded-xl hover:bg-slate-50 transition border border-slate-100"
+                >
+                  <img
+                    src={dish.imageUrl}
+                    alt={dish.name}
+                    className="w-12 h-12 rounded-lg object-cover shrink-0"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <div className="text-xs font-bold text-slate-900 truncate">
+                      {dish.name}
+                    </div>
+                    <div className="text-[11px] text-slate-400">
+                      {dish.category} • ₹{dish.price}
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-xs font-bold text-amber-600 flex items-center space-x-0.5">
+                      <span>★</span>
+                      <span>{dish.rating}</span>
+                    </div>
+                    <div className="text-[9px] text-slate-400">Guest favorite</div>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
       </div>
@@ -283,21 +310,30 @@ export const OverviewTab: React.FC<{ onNavigate: (tab: RestaurantTab) => void }>
           </div>
 
           <div className="space-y-2.5">
-            {activeReviews.slice(0, 2).map((rev) => (
-              <div key={rev.id} className="p-3 rounded-xl bg-slate-50 border border-slate-200/70 space-y-1 text-xs">
-                <div className="flex items-center justify-between">
-                  <span className="font-bold text-slate-900">{rev.customerName}</span>
-                  <span className="text-amber-500 font-bold">{'★'.repeat(rev.rating)}</span>
-                </div>
-                <p className="text-slate-600 text-[11px] line-clamp-2">
-                  "{rev.comment}"
+            {activeReviews.length === 0 ? (
+              <div className="p-5 text-center bg-slate-50/70 rounded-xl border border-dashed border-slate-200">
+                <p className="text-xs font-semibold text-slate-600">No reviews received yet</p>
+                <p className="text-[11px] text-slate-400 mt-0.5">
+                  Guest feedback from table QR scans will appear here automatically.
                 </p>
-                <div className="text-[10px] text-slate-400 flex items-center justify-between pt-1">
-                  <span>Table {rev.tableNumber || 12}</span>
-                  <span>{rev.date}</span>
-                </div>
               </div>
-            ))}
+            ) : (
+              activeReviews.slice(0, 2).map((rev) => (
+                <div key={rev.id} className="p-3 rounded-xl bg-slate-50 border border-slate-200/70 space-y-1 text-xs">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-slate-900">{rev.customerName}</span>
+                    <span className="text-amber-500 font-bold">{'★'.repeat(rev.rating)}</span>
+                  </div>
+                  <p className="text-slate-600 text-[11px] line-clamp-2">
+                    "{rev.comment}"
+                  </p>
+                  <div className="text-[10px] text-slate-400 flex items-center justify-between pt-1">
+                    <span>Table {rev.tableNumber || 12}</span>
+                    <span>{rev.date}</span>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
 
@@ -316,30 +352,39 @@ export const OverviewTab: React.FC<{ onNavigate: (tab: RestaurantTab) => void }>
           </div>
 
           <div className="space-y-2.5">
-            {activeCustomers.slice(0, 2).map((cust) => (
-              <div key={cust.id} className="p-3 rounded-xl bg-slate-50 border border-slate-200/70 space-y-1 text-xs flex items-center justify-between">
-                <div>
-                  <div className="font-bold text-slate-900">{cust.name}</div>
-                  <div className="text-[10px] text-slate-500">
-                    {cust.visits} Visits • Total Spend ₹{cust.totalSpend.toLocaleString()}
-                  </div>
-                  <div className="flex gap-1 mt-1">
-                    {cust.tags.slice(0, 2).map((t, idx) => (
-                      <span key={idx} className="px-1.5 py-0.2 rounded bg-amber-100 text-amber-800 text-[9px] font-semibold">
-                        {t}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-
-                <button
-                  onClick={() => onNavigate('customers')}
-                  className="px-2.5 py-1 text-xs font-semibold text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-100"
-                >
-                  View Profile
-                </button>
+            {activeCustomers.length === 0 ? (
+              <div className="p-5 text-center bg-slate-50/70 rounded-xl border border-dashed border-slate-200">
+                <p className="text-xs font-semibold text-slate-600">No diners registered yet</p>
+                <p className="text-[11px] text-slate-400 mt-0.5">
+                  Diners who register at tables and claim rewards will be cataloged here.
+                </p>
               </div>
-            ))}
+            ) : (
+              activeCustomers.slice(0, 2).map((cust) => (
+                <div key={cust.id} className="p-3 rounded-xl bg-slate-50 border border-slate-200/70 space-y-1 text-xs flex items-center justify-between">
+                  <div>
+                    <div className="font-bold text-slate-900">{cust.name}</div>
+                    <div className="text-[10px] text-slate-500">
+                      {cust.visits} Visits • Total Spend ₹{cust.totalSpend.toLocaleString()}
+                    </div>
+                    <div className="flex gap-1 mt-1">
+                      {cust.tags.slice(0, 2).map((t, idx) => (
+                        <span key={idx} className="px-1.5 py-0.2 rounded bg-amber-100 text-amber-800 text-[9px] font-semibold">
+                          {t}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() => onNavigate('customers')}
+                    className="px-2.5 py-1 text-xs font-semibold text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-100"
+                  >
+                    View Profile
+                  </button>
+                </div>
+              ))
+            )}
           </div>
         </div>
       </div>

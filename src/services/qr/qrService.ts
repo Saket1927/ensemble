@@ -19,12 +19,10 @@ export function getTableCanonicalUrl(restaurantSlug: string, tableNumber: number
     return `${cleanOrigin}/${cleanSlug}/t/${tableNumber}`;
   }
   if (typeof window !== 'undefined' && window.location && window.location.origin) {
-    const origin = window.location.origin;
-    if (!origin.includes('localhost') && !origin.includes('127.0.0.1')) {
-      return `${origin}/${cleanSlug}/t/${tableNumber}`;
-    }
+    const origin = window.location.origin.replace(/\/$/, '');
+    return `${origin}/${cleanSlug}/t/${tableNumber}`;
   }
-  return `https://${cleanSlug}.ensemble.com/t/${tableNumber}`;
+  return `https://ensemble-mqjlz2le8-ensemble6.vercel.app/${cleanSlug}/t/${tableNumber}`;
 }
 
 /**

@@ -85,6 +85,7 @@ const SEED_TABLE_SESSIONS: Record<string, TableSession[]> = {
 const SEED_ORDERS: CaptainOrder[] = [
   {
     id: 'ord_101',
+    restaurantId: 'rest_heritage',
     tabId: 'tab_table_12',
     tableNumber: 12,
     orderedByName: 'Abhishek Sharma',
@@ -291,6 +292,7 @@ interface TenantContextType {
 
   // Restaurant Admin Actions
   addRestaurant: (newRest: Partial<Restaurant>) => Restaurant;
+  ensureRestaurantExists: (slug: string) => Restaurant;
   updateRestaurant: (id: string, updates: Partial<Restaurant>) => void;
   toggleRestaurantStatus: (id: string) => void;
   updateRestaurantPlanFeatures: (id: string, features: any) => void;
@@ -359,9 +361,16 @@ export const TenantProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     }
   };
 
-  const [restaurants, setRestaurants] = useState<Restaurant[]>(() =>
-    loadState(STORAGE_KEYS.RESTAURANTS, INITIAL_RESTAURANTS)
-  );
+  const [restaurants, setRestaurants] = useState<Restaurant[]>(() => {
+    const saved = loadState<Restaurant[]>(STORAGE_KEYS.RESTAURANTS, INITIAL_RESTAURANTS);
+    const merged = [...saved];
+    for (const initR of INITIAL_RESTAURANTS) {
+      if (!merged.some((r) => r.slug.toLowerCase() === initR.slug.toLowerCase())) {
+        merged.push(initR);
+      }
+    }
+    return merged;
+  });
   const [menuItemsMap, setMenuItemsMap] = useState<Record<string, MenuItem[]>>(() =>
     loadState(STORAGE_KEYS.MENU, INITIAL_MENU_ITEMS)
   );
@@ -380,18 +389,20 @@ export const TenantProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   const [socialSubmissionsMap, setSocialSubmissionsMap] = useState<Record<string, SocialSubmission[]>>(() =>
     loadState(STORAGE_KEYS.SOCIAL, INITIAL_SOCIAL_SUBMISSIONS)
   );
-  const [tablesMap, setTablesMap] = useState<Record<string, TableRecord[]>>(() =>
-    loadState(STORAGE_KEYS.TABLES, INITIAL_TABLES)
-  );
+  const [tablesMap, setTablesMap] = useState<Record<string, TableRecord[]>>(() => {
+    const saved = loadState<Record<string, TableRecord[]>>(STORAGE_KEYS.TABLES, INITIAL_TABLES);
+    return { ...INITIAL_TABLES, ...saved };
+  });
   const [campaignsMap] = useState<Record<string, Campaign[]>>(INITIAL_CAMPAIGNS);
 
   // New Phase 1 State
   const [tableSessions, setTableSessions] = useState<Record<string, TableSession[]>>(() =>
     loadState(STORAGE_KEYS.TABLE_SESSIONS, SEED_TABLE_SESSIONS)
   );
-  const [orders, setOrders] = useState<CaptainOrder[]>(() =>
-    loadState(STORAGE_KEYS.ORDERS, SEED_ORDERS)
-  );
+  const [orders, setOrders] = useState<CaptainOrder[]>(() => {
+    const raw = loadState<CaptainOrder[]>(STORAGE_KEYS.ORDERS, SEED_ORDERS);
+    return raw.map((o) => (o.restaurantId ? o : { ...o, restaurantId: 'rest_heritage' }));
+  });
   const [captainCalls, setCaptainCalls] = useState<CaptainCall[]>(() =>
     loadState(STORAGE_KEYS.CAPTAIN_CALLS, SEED_CAPTAIN_CALLS)
   );
@@ -498,7 +509,7 @@ export const TenantProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   const activeSocialSubmissions = socialSubmissionsMap[activeRestaurantId] || [];
   const activeTables = tablesMap[activeRestaurantId] || [];
   const activeCampaigns = campaignsMap[activeRestaurantId] || [];
-  const activeOrders = orders.filter((o) => (o.restaurantId ? o.restaurantId === activeRestaurantId : activeRestaurantId === 'rest_heritage'));
+  const activeOrders = orders.filter((o) => o.restaurantId === activeRestaurantId);
 
   // Active table session
   const currentTableSession =
@@ -1079,10 +1090,14 @@ export const TenantProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
     setRestaurants((prev) => [fullRest, ...prev]);
 
+    const origin = typeof window !== 'undefined' && window.location && window.location.origin
+      ? window.location.origin.replace(/\/$/, '')
+      : 'https://ensemble-mqjlz2le8-ensemble6.vercel.app';
+
     const newTables: TableRecord[] = Array.from({ length: fullRest.tablesCount }, (_, i) => ({
       tableNumber: i + 1,
       restaurantId: id,
-      qrUrl: `${slug}.ensemble.com/t/${i + 1}`,
+      qrUrl: `${origin}/${slug}/t/${i + 1}`,
       status: 'available',
       totalScans: 0,
       lastScanned: 'Never',
@@ -1118,9 +1133,9 @@ export const TenantProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         description: '15% celebration discount on food & beverages',
         probability: 30,
         color: fullRest.branding.secondaryColor,
-        textColor: '#ffffff',
+        textColor: '#1c1917',
         active: true,
-        expiryDays: 14,
+        expiryDays: 7,
       },
       {
         id: `rew_${id}_3`,
@@ -1150,6 +1165,19 @@ export const TenantProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     setRewardItemsMap((prev) => ({ ...prev, [id]: starterRewards }));
 
     return fullRest;
+  };
+
+  const ensureRestaurantExists = (slug: string): Restaurant => {
+    const cleanSlug = slug.toLowerCase().trim();
+    const existing = restaurants.find((r) => r.slug.toLowerCase() === cleanSlug);
+    if (existing) return existing;
+
+    const formattedName = cleanSlug.charAt(0).toUpperCase() + cleanSlug.slice(1);
+    return addRestaurant({
+      name: formattedName,
+      slug: cleanSlug,
+      tablesCount: 20,
+    });
   };
 
   const updateRestaurant = (id: string, updates: Partial<Restaurant>) => {
@@ -1321,10 +1349,13 @@ export const TenantProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   };
 
   const addTable = (tableNumber: number) => {
+    const origin = typeof window !== 'undefined' && window.location && window.location.origin
+      ? window.location.origin.replace(/\/$/, '')
+      : 'https://ensemble-mqjlz2le8-ensemble6.vercel.app';
     const newTable: TableRecord = {
       tableNumber,
       restaurantId: activeRestaurantId,
-      qrUrl: `${activeRestaurantSlug}.ensemble.com/t/${tableNumber}`,
+      qrUrl: `${origin}/${activeRestaurantSlug}/t/${tableNumber}`,
       status: 'available',
       totalScans: 0,
       lastScanned: 'Never',
@@ -1451,6 +1482,7 @@ export const TenantProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         updateBillAuditStatus,
 
         addRestaurant,
+        ensureRestaurantExists,
         updateRestaurant,
         toggleRestaurantStatus,
         updateRestaurantPlanFeatures,
