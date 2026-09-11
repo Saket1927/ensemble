@@ -21,53 +21,71 @@ export const OverviewTab: React.FC<{ onNavigate: (tab: RestaurantTab) => void }>
     activeSocialSubmissions,
     activeCustomers,
     activeMenuItems,
-    setRole,
+    activeTables,
+    activeOrders,
+    tableSessions,
   } = useTenant();
 
   const pendingSocial = activeSocialSubmissions.filter((s) => s.status === 'pending').length;
 
+  const totalScans = activeTables.reduce((sum, t) => sum + (t.totalScans || 0), 0);
+  const restaurantSessions = tableSessions[activeRestaurant.id] || [];
+  const totalVisits = restaurantSessions.length;
+  const totalOrdersCount = activeOrders.length;
+  const totalRevenue = activeOrders
+    .filter((o) => o.status !== 'cancelled')
+    .reduce((sum, o) => sum + o.items.reduce((iSum, it) => iSum + it.price * it.quantity, 0), 0);
+
+  const avgRating = activeReviews.length > 0
+    ? (activeReviews.reduce((sum, r) => sum + r.rating, 0) / activeReviews.length).toFixed(1) + ' ★'
+    : 'New';
+
   const stats = [
     {
       title: "Today's QR Scans",
-      value: '142',
-      change: '+18.4%',
-      period: 'vs yesterday',
+      value: totalScans.toString(),
+      change: totalScans > 0 ? `${totalScans} verified` : '0 today',
+      period: 'realtime scans',
       icon: QrCode,
       color: 'text-emerald-600 bg-emerald-50',
     },
     {
       title: 'Customer Visits',
-      value: '68',
-      change: '+12.1%',
+      value: totalVisits.toString(),
+      change: totalVisits > 0 ? `${totalVisits} diners` : 'Awaiting guests',
       period: 'table sessions',
       icon: Users,
       color: 'text-blue-600 bg-blue-50',
     },
     {
+      title: 'Live Orders',
+      value: totalOrdersCount.toString(),
+      change: totalRevenue > 0 ? `₹${totalRevenue.toLocaleString()}` : '₹0 sales',
+      period: 'kitchen tab',
+      icon: Tag,
+      color: 'text-purple-600 bg-purple-50',
+    },
+    {
       title: 'Reviews Collected',
       value: activeReviews.length.toString(),
-      change: '4.9 ★ avg',
-      period: '100% verified',
+      change: avgRating,
+      period: activeReviews.length > 0 ? '100% verified' : 'Ready for feedback',
       icon: Star,
       color: 'text-amber-600 bg-amber-50',
     },
     {
-      title: 'Spins Generated',
-      value: '52',
-      change: '76% win rate',
-      period: 'engagement',
+      title: 'Tables Provisioned',
+      value: activeTables.length.toString(),
+      change: `${activeTables.filter((t) => t.status === 'occupied').length} active`,
+      period: 'floor capacity',
       icon: Sparkles,
-      color: 'text-purple-600 bg-purple-50',
-    },
-    {
-      title: 'Offers Redeemed',
-      value: '18',
-      change: '₹3,840',
-      period: 'bill savings',
-      icon: Tag,
       color: 'text-rose-600 bg-rose-50',
     },
   ];
+
+  const handleOpenGuestView = () => {
+    window.open(`/${activeRestaurant.slug}/t/1`, '_blank');
+  };
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -98,8 +116,8 @@ export const OverviewTab: React.FC<{ onNavigate: (tab: RestaurantTab) => void }>
           </button>
 
           <button
-            onClick={() => setRole('customer')}
-            className="px-4 py-2 rounded-xl text-xs font-bold text-white shadow-sm flex items-center space-x-1.5"
+            onClick={handleOpenGuestView}
+            className="px-4 py-2 rounded-xl text-xs font-bold text-white shadow-sm flex items-center space-x-1.5 transition hover:opacity-90"
             style={{ backgroundColor: activeRestaurant.branding.primaryColor }}
           >
             <span>View As Guest</span>

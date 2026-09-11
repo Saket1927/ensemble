@@ -249,6 +249,7 @@ interface TenantContextType {
 
   // Open Tab & Orders (Section 6, 7, 8, 9)
   orders: CaptainOrder[];
+  activeOrders: CaptainOrder[];
   placeCustomerOrder: (tableNumber: number, items: { menuItemId: string; name: string; price: number; quantity: number }[]) => void;
   captainAddOrder: (tableNumber: number, items: { menuItemId: string; name: string; price: number; quantity: number }[]) => void;
   confirmOrder: (orderId: string, prepMinutes: 10 | 20 | 30) => void;
@@ -421,14 +422,7 @@ export const TenantProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   );
 
   // Customer Session & Geofence
-  const [customerSession, setCustomerSession] = useState<CustomerSessionState | null>(() => {
-    return {
-      name: 'Abhishek Sharma',
-      phone: '+91 98200 11223',
-      isHost: true,
-      tableNumber: 12,
-    };
-  });
+  const [customerSession, setCustomerSession] = useState<CustomerSessionState | null>(null);
   const [geofenceStatus, setGeofenceStatus] = useState<'checking' | 'passed' | 'failed' | 'requested_override' | 'overridden'>('passed');
 
   // Call Captain Cooldown
@@ -497,13 +491,14 @@ export const TenantProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   const activeRestaurantId = activeRestaurant.id;
 
   const activeMenuItems = menuItemsMap[activeRestaurantId] || [];
-  const activeRewardItems = rewardItemsMap[activeRestaurantId] || INITIAL_REWARD_ITEMS['rest_heritage'];
+  const activeRewardItems = rewardItemsMap[activeRestaurantId] || [];
   const activeOffers = offersMap[activeRestaurantId] || [];
   const activeCustomers = customersMap[activeRestaurantId] || [];
   const activeReviews = reviewsMap[activeRestaurantId] || [];
   const activeSocialSubmissions = socialSubmissionsMap[activeRestaurantId] || [];
-  const activeTables = tablesMap[activeRestaurantId] || (INITIAL_TABLES['rest_heritage'] as TableRecord[]);
+  const activeTables = tablesMap[activeRestaurantId] || [];
   const activeCampaigns = campaignsMap[activeRestaurantId] || [];
+  const activeOrders = orders.filter((o) => (o.restaurantId ? o.restaurantId === activeRestaurantId : activeRestaurantId === 'rest_heritage'));
 
   // Active table session
   const currentTableSession =
@@ -713,6 +708,7 @@ export const TenantProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
     const newOrder: CaptainOrder = {
       id: `ord_${Date.now()}`,
+      restaurantId: activeRestaurantId,
       tabId: `tab_table_${tableNumber}`,
       tableNumber,
       orderedByName: customerSession?.name || 'Table Guest',
@@ -741,6 +737,7 @@ export const TenantProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
     const newOrder: CaptainOrder = {
       id: `ord_cpt_${Date.now()}`,
+      restaurantId: activeRestaurantId,
       tabId: `tab_table_${tableNumber}`,
       tableNumber,
       orderedByName: 'Captain (Direct Oral Order)',
@@ -1090,7 +1087,67 @@ export const TenantProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       totalScans: 0,
       lastScanned: 'Never',
     }));
+
     setTablesMap((prev) => ({ ...prev, [id]: newTables }));
+    setMenuItemsMap((prev) => ({ ...prev, [id]: [] }));
+    setOffersMap((prev) => ({ ...prev, [id]: [] }));
+    setCustomersMap((prev) => ({ ...prev, [id]: [] }));
+    setReviewsMap((prev) => ({ ...prev, [id]: [] }));
+    setSocialSubmissionsMap((prev) => ({ ...prev, [id]: [] }));
+    setTableSessions((prev) => ({ ...prev, [id]: [] }));
+
+    // Initialize clean balanced starter rewards summing to exactly 100% probability
+    const starterRewards: RewardWheelItem[] = [
+      {
+        id: `rew_${id}_1`,
+        label: '10% OFF',
+        discountType: 'percentage',
+        discountValue: 10,
+        description: '10% welcome discount on dining bill',
+        probability: 40,
+        color: fullRest.branding.primaryColor,
+        textColor: '#ffffff',
+        active: true,
+        expiryDays: 7,
+      },
+      {
+        id: `rew_${id}_2`,
+        label: '15% OFF',
+        discountType: 'percentage',
+        discountValue: 15,
+        description: '15% celebration discount on food & beverages',
+        probability: 30,
+        color: fullRest.branding.secondaryColor,
+        textColor: '#ffffff',
+        active: true,
+        expiryDays: 14,
+      },
+      {
+        id: `rew_${id}_3`,
+        label: '20% OFF',
+        discountType: 'percentage',
+        discountValue: 20,
+        description: '20% luxury discount on your next visit',
+        probability: 20,
+        color: '#8b733e',
+        textColor: '#ffffff',
+        active: true,
+        expiryDays: 14,
+      },
+      {
+        id: `rew_${id}_4`,
+        label: 'Better Luck Next Time',
+        discountType: 'no_luck',
+        discountValue: 0,
+        description: 'Complimentary chef welcome bites on next visit',
+        probability: 10,
+        color: '#2a3a30',
+        textColor: fullRest.branding.secondaryColor,
+        active: true,
+        expiryDays: 0,
+      },
+    ];
+    setRewardItemsMap((prev) => ({ ...prev, [id]: starterRewards }));
 
     return fullRest;
   };
@@ -1313,13 +1370,8 @@ export const TenantProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     setCanSpin(true);
     setUnlockedExtraSpins(0);
     setActiveRestaurantSlug('heritage');
-    setActiveTable(12);
-    setCustomerSession({
-      name: 'Abhishek Sharma',
-      phone: '+91 98200 11223',
-      isHost: true,
-      tableNumber: 12,
-    });
+    setActiveTable(1);
+    setCustomerSession(null);
     setGeofenceStatus('passed');
   };
 
@@ -1369,6 +1421,7 @@ export const TenantProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         callCooldownRemaining,
 
         orders,
+        activeOrders,
         placeCustomerOrder,
         captainAddOrder,
         confirmOrder,

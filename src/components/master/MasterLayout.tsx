@@ -27,6 +27,7 @@ import { ActivityFeed } from './ActivityFeed';
 import { GlobalCustomersDirectory } from './GlobalCustomersDirectory';
 import { BillAuditQueue } from './BillAuditQueue';
 import { ModularPlanBuilder } from './ModularPlanBuilder';
+import { MasterSettings } from './MasterSettings';
 
 export type MasterTab =
   | 'overview'
@@ -220,34 +221,7 @@ export const MasterLayout: React.FC = () => {
           {activeTab === 'plans' && <ModularPlanBuilder />}
           {activeTab === 'revenue' && <RevenueTab />}
           {activeTab === 'activity' && <ActivityFeed />}
-          {activeTab === 'settings' && (
-            <div className="bg-slate-950 p-6 rounded-2xl border border-slate-800 space-y-4 max-w-2xl text-xs text-slate-300">
-              <h3 className="text-base font-bold text-white">Platform Configurations</h3>
-              <p className="text-slate-400">
-                Global settings for ENSEMBLE SaaS root subdomains, Stripe merchant integration, and automated QR provisioning.
-              </p>
-              <div className="space-y-3 pt-2">
-                <div>
-                  <label className="block text-slate-400 mb-1">Root Domain</label>
-                  <input
-                    type="text"
-                    disabled
-                    value="ensemble.com"
-                    className="w-full bg-slate-900 px-3 py-2 rounded-xl border border-slate-700 font-mono text-white"
-                  />
-                </div>
-                <div>
-                  <label className="block text-slate-400 mb-1">Multi-Tenant Routing Policy</label>
-                  <input
-                    type="text"
-                    disabled
-                    value="Dynamic Subdomain Resolution (*.ensemble.com)"
-                    className="w-full bg-slate-900 px-3 py-2 rounded-xl border border-slate-700 font-mono text-white"
-                  />
-                </div>
-              </div>
-            </div>
-          )}
+          {activeTab === 'settings' && <MasterSettings />}
         </main>
       </div>
 

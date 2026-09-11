@@ -29,7 +29,7 @@ export const LockedFeatureBanner: React.FC<LockedFeatureBannerProps> = ({
 
       <div className="pt-2">
         <button
-          onClick={() => setRole('master_admin')}
+          onClick={() => window.open('mailto:admin@ensemble.com?subject=Upgrade%20Plan%20Tier', '_blank')}
           className="w-full py-3 px-4 rounded-xl text-xs font-bold text-slate-950 bg-amber-500 hover:bg-amber-400 shadow-lg transition-transform active:scale-95 flex items-center justify-center space-x-2"
         >
           <Sparkles className="w-4 h-4" />

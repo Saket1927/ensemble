@@ -73,7 +73,7 @@ export const SettingsTab: React.FC = () => {
         </div>
 
         <button
-          onClick={() => setRole('customer')}
+          onClick={() => window.open(`/${activeRestaurant.slug}/t/1`, '_blank')}
           className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 flex items-center space-x-1.5 transition shadow-sm"
         >
           <span>Preview Customer Experience</span>

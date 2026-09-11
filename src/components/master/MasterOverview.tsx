@@ -239,8 +239,7 @@ export const MasterOverview: React.FC<MasterOverviewProps> = ({ onNavigate, onOp
                 <div className="grid grid-cols-2 gap-2 pt-1">
                   <button
                     onClick={() => {
-                      setActiveRestaurantSlug(rest.slug);
-                      setRole('customer');
+                      window.open(`/${rest.slug}/t/1`, '_blank');
                     }}
                     className="py-1.5 px-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-[10px] font-semibold text-center transition flex items-center justify-center space-x-1"
                   >
@@ -250,12 +249,11 @@ export const MasterOverview: React.FC<MasterOverviewProps> = ({ onNavigate, onOp
 
                   <button
                     onClick={() => {
-                      setActiveRestaurantSlug(rest.slug);
-                      setRole('restaurant_admin');
+                      window.open('/restaurant/login', '_blank');
                     }}
                     className="py-1.5 px-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-[10px] font-semibold text-center transition flex items-center justify-center space-x-1"
                   >
-                    <span>Dashboard</span>
+                    <span>Login Portal</span>
                     <ExternalLink className="w-3 h-3 text-amber-400" />
                   </button>
                 </div>

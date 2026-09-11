@@ -30,12 +30,6 @@ export const RestaurantLogin: React.FC<{ onNavigate: (path: string) => void }> =
     }
   };
 
-  const handleFillDemo = () => {
-    setLoginId('heritage.owner');
-    setPassword('test password');
-    setError(null);
-  };
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#0c0f17] via-[#111827] to-[#1c1917] text-slate-100 flex flex-col justify-center items-center px-4 sm:px-6 lg:px-8 py-12 relative overflow-hidden font-sans">
       {/* Subtle warm amber glow */}
@@ -128,18 +122,6 @@ export const RestaurantLogin: React.FC<{ onNavigate: (path: string) => void }> =
               )}
             </button>
           </form>
-
-          {/* Quick Demo Credentials Assistant */}
-          <div className="mt-6 pt-5 border-t border-slate-800 text-center">
-            <button
-              type="button"
-              onClick={handleFillDemo}
-              className="text-[11px] text-slate-400 hover:text-amber-400 transition inline-flex items-center space-x-1 py-1 px-2.5 rounded-lg bg-slate-950/50 border border-slate-800"
-            >
-              <CheckCircle2 className="w-3 h-3 text-amber-500" />
-              <span>Autofill Owner Credentials (heritage.owner / test password)</span>
-            </button>
-          </div>
         </div>
 
         {/* Portal Switcher Footer */}

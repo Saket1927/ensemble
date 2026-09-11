@@ -30,12 +30,6 @@ export const CaptainLogin: React.FC<{ onNavigate: (path: string) => void }> = ({
     }
   };
 
-  const handleFillDemo = () => {
-    setLoginId('captain1');
-    setPassword('test password');
-    setError(null);
-  };
-
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col justify-center items-center px-4 sm:px-6 lg:px-8 py-8 font-sans">
       <div className="w-full max-w-sm">
@@ -125,18 +119,6 @@ export const CaptainLogin: React.FC<{ onNavigate: (path: string) => void }> = ({
               )}
             </button>
           </form>
-
-          {/* Quick Demo Credentials Assistant */}
-          <div className="mt-5 pt-4 border-t border-slate-800 text-center">
-            <button
-              type="button"
-              onClick={handleFillDemo}
-              className="text-[11px] text-slate-400 hover:text-amber-400 transition inline-flex items-center space-x-1 py-1 px-2.5 rounded-lg bg-slate-950/50 border border-slate-800"
-            >
-              <CheckCircle2 className="w-3 h-3 text-amber-500" />
-              <span>Autofill Captain (captain1 / test password)</span>
-            </button>
-          </div>
         </div>
 
         {/* Portal Switcher Footer */}
