@@ -71,7 +71,7 @@ export const ModularPlanBuilder: React.FC = () => {
     updateRestaurantPlanFeatures(targetRestaurant.id, {
       [key]: !currentVal,
     });
-    setNotice(`Updated ${key} for ${targetRestaurant.name}. Propagating across tenant layers.`);
+    setNotice(`Updated ${key} for ${targetRestaurant.name}. Propagating across restaurant services.`);
     setTimeout(() => setNotice(null), 3000);
   };
 

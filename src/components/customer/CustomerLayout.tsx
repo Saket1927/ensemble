@@ -20,6 +20,7 @@ import { GeofenceModal } from './GeofenceModal';
 import { MandatoryIdentityModal } from './MandatoryIdentityModal';
 import { OpenTabDrawer } from './OpenTabDrawer';
 import { BillUploadModal } from './BillUploadModal';
+import { InstagramCameraModal } from './InstagramCameraModal';
 
 export const CustomerLayout: React.FC = () => {
   const {
@@ -35,6 +36,7 @@ export const CustomerLayout: React.FC = () => {
   const [isSpinModalOpen, setIsSpinModalOpen] = useState(false);
   const [isReferralModalOpen, setIsReferralModalOpen] = useState(false);
   const [isBillUploadModalOpen, setIsBillUploadModalOpen] = useState(false);
+  const [isInstagramModalOpen, setIsInstagramModalOpen] = useState(false);
 
   const primaryColor = activeRestaurant.branding.primaryColor;
   const secondaryColor = activeRestaurant.branding.secondaryColor;
@@ -115,6 +117,7 @@ export const CustomerLayout: React.FC = () => {
             onOpenSpin={() => setIsSpinModalOpen(true)}
             onOpenReferral={() => setIsReferralModalOpen(true)}
             onOpenBillUpload={() => setIsBillUploadModalOpen(true)}
+            onOpenInstagramCamera={() => setIsInstagramModalOpen(true)}
           />
         )}
 
@@ -242,13 +245,22 @@ export const CustomerLayout: React.FC = () => {
         <ReferralModal onClose={() => setIsReferralModalOpen(false)} />
       )}
 
-      {/* Live Open Tab Drawer (Section 7, 8, 9, 10) */}
-      <OpenTabDrawer onOpenMenuToAdd={() => setCustomerActiveTab('menu')} />
+      {/* Live Open Tab Drawer (Section 7, 8, 9, 10) - Gated by plan features */}
+      {activeRestaurant.planFeatures?.ordering !== false && (
+        <OpenTabDrawer onOpenMenuToAdd={() => setCustomerActiveTab('menu')} />
+      )}
 
       {/* Independent Master Admin Bill Upload (Section 8a) */}
       {isBillUploadModalOpen && (
         <BillUploadModal onClose={() => setIsBillUploadModalOpen(false)} />
       )}
+
+      {/* Camera-First Instagram Rewards Modal */}
+      <InstagramCameraModal
+        isOpen={isInstagramModalOpen}
+        onClose={() => setIsInstagramModalOpen(false)}
+        onOpenSpin={() => setIsSpinModalOpen(true)}
+      />
     </div>
   );
 };

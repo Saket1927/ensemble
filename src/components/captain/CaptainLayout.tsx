@@ -155,6 +155,14 @@ export const CaptainLayout: React.FC = () => {
       setScanResult('ALREADY_REDEEMED: This coupon has already been redeemed.');
       return;
     }
+    if (found.slot === 'queued') {
+      setScanResult('NEXT_VISIT_REWARD: This coupon is queued for the diner\'s next visit and cannot be redeemed today.');
+      return;
+    }
+    if (found.expiresAt && !isNaN(Date.parse(found.expiresAt)) && new Date(found.expiresAt).getTime() < Date.now()) {
+      setScanResult('EXPIRED_COUPON: This coupon has expired (exceeded 20-day validity).');
+      return;
+    }
     redeemCoupon(found.id);
     setScanResult(`SUCCESS: Verified & Redeemed! ${found.rewardLabel} (${found.voucherCode})`);
   };
@@ -820,7 +828,7 @@ export const CaptainLayout: React.FC = () => {
             </div>
 
             <p className="text-xs text-slate-400">
-              Enforces tenant isolation: Vouchers from other restaurants will be rejected immediately.
+              Enforces restaurant isolation: Vouchers from other restaurants will be rejected immediately.
             </p>
 
             <div>

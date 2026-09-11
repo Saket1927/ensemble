@@ -11,7 +11,7 @@ export const PlansTab: React.FC = () => {
       activeTenants: 28,
       features: [
         'Up to 15 Table QR Standees',
-        'Dynamic Multi-Tenant Menu',
+        'Dynamic Menu Management',
         'Guest Reviews Collection',
         'Standard Spin & Win (3 prizes)',
         'Basic Social Proof Uploads',
@@ -62,7 +62,7 @@ export const PlansTab: React.FC = () => {
           SaaS Subscription Plans & Pricing Strategy
         </h2>
         <p className="text-xs text-slate-400">
-          Manage tier limits, pricing matrices, and tenant distribution across tiers.
+          Manage tier limits, pricing matrices, and restaurant distribution across tiers.
         </p>
       </div>
 
@@ -73,7 +73,7 @@ export const PlansTab: React.FC = () => {
             className={`p-6 rounded-3xl border shadow-xl flex flex-col justify-between space-y-6 relative ${
               plan.popular
                 ? 'bg-gradient-to-b from-slate-900 to-indigo-950/40 border-indigo-500/50 ring-1 ring-indigo-500/30'
-                : 'bg-slate-950 border-slate-800'
+                : 'bg-slate-900/90 border-slate-800'
             }`}
           >
             {plan.popular && (
@@ -87,7 +87,7 @@ export const PlansTab: React.FC = () => {
               <div className="flex items-center justify-between">
                 <h3 className="font-bold text-base text-white">{plan.name}</h3>
                 <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-800 text-slate-300">
-                  {plan.activeTenants} Active
+                  {plan.activeTenants} Restaurants
                 </span>
               </div>
 

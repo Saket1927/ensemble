@@ -159,7 +159,7 @@ export const MasterSettings: React.FC = () => {
           <span>Platform & Master Security Settings</span>
         </h2>
         <p className="text-xs text-slate-400 mt-1">
-          Manage master root administrator credentials, encryption policies, and platform tenant routing.
+          Manage master root administrator credentials, encryption policies, and platform restaurant routing.
         </p>
       </div>
 

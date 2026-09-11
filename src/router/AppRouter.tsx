@@ -8,11 +8,11 @@ import { MasterLayout } from '../components/master/MasterLayout';
 import { RestaurantLayout } from '../components/restaurant/RestaurantLayout';
 import { CaptainLayout } from '../components/captain/CaptainLayout';
 import { CustomerLayout } from '../components/customer/CustomerLayout';
-import { Shield, UtensilsCrossed, Bell, ExternalLink, ArrowRight } from 'lucide-react';
+import { Shield, UtensilsCrossed, Bell, ExternalLink, ArrowRight, AlertCircle } from 'lucide-react';
 
 export const AppRouter: React.FC = () => {
   const { user, isLoading } = useAuth();
-  const { restaurants, setActiveRestaurantSlug, setActiveTable, activeRestaurantSlug, ensureRestaurantExists } = useTenant();
+  const { restaurants, setActiveRestaurantSlug, setActiveTable, activeRestaurantSlug } = useTenant();
 
   const [currentPath, setCurrentPath] = useState<string>(window.location.pathname);
 
@@ -120,16 +120,16 @@ export const AppRouter: React.FC = () => {
     return <RestaurantLayout />;
   }
 
-  // 5. CAPTAIN LOGIN ROUTE
+  // 5. GLOBAL CAPTAIN LOGIN ROUTE (/captain/login)
   if (cleanPath === '/captain/login') {
     if (user?.role === 'captain') {
-      navigate('/captain');
+      navigate(user.restaurantSlug ? `/${user.restaurantSlug}/captain` : '/captain');
       return null;
     }
     return <CaptainLogin onNavigate={navigate} />;
   }
 
-  // 6. CAPTAIN FLOOR ROUTE (Protected)
+  // 6. GLOBAL CAPTAIN FLOOR ROUTE (/captain)
   if (cleanPath === '/captain' || cleanPath.startsWith('/captain/')) {
     if (!user) {
       return <CaptainLogin onNavigate={navigate} />;
@@ -156,35 +156,155 @@ export const AppRouter: React.FC = () => {
         </div>
       );
     }
+    if (user.restaurantSlug && activeRestaurantSlug !== user.restaurantSlug) {
+      setActiveRestaurantSlug(user.restaurantSlug);
+    }
     return <CaptainLayout />;
   }
 
-  // 7. PUBLIC CUSTOMER RESTAURANT EXPERIENCE (/:restaurantSlug or /:restaurantSlug/t/:tableNumber)
-  // Match path pattern: /:slug or /:slug/t/:tableNumber
+  // 7. PUBLIC RESTAURANT ROUTES & RESTAURANT-SPECIFIC PORTALS
+  // Pattern: /:restaurantSlug, /:restaurantSlug/t/:tableNumber, /:restaurantSlug/captain/login, /:restaurantSlug/captain
   const RESERVED_PREFIXES = ['master', 'restaurant', 'captain', 'api', 'auth', 'login', 'admin', 'preview'];
   const pathParts = cleanPath.split('/').filter(Boolean);
+
   if (pathParts.length > 0 && !RESERVED_PREFIXES.includes(pathParts[0])) {
     const candidateSlug = pathParts[0];
-    let matchedRestaurant = restaurants.find((r) => r.slug.toLowerCase() === candidateSlug);
+    const matchedRestaurant = restaurants.find((r) => r.slug.toLowerCase() === candidateSlug.toLowerCase());
 
-    // If not found in current browser localStorage (e.g. guest scanning on phone), auto-provision
-    if (!matchedRestaurant && ensureRestaurantExists) {
-      matchedRestaurant = ensureRestaurantExists(candidateSlug);
+    // If restaurant is NOT found, show branded error page
+    if (!matchedRestaurant) {
+      return (
+        <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col items-center justify-center p-6 text-center font-sans">
+          <div className="w-16 h-16 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center mb-4">
+            <UtensilsCrossed className="w-8 h-8" />
+          </div>
+          <h2 className="text-2xl font-bold text-white font-serif mb-2">Restaurant Not Found</h2>
+          <p className="text-sm text-slate-400 max-w-md mb-6 leading-relaxed">
+            We couldn't find a restaurant registered under{' '}
+            <span className="font-mono text-amber-300 font-bold">"{candidateSlug}"</span>.
+            Please verify the URL or scan the official QR code at your dining table.
+          </p>
+          <button
+            onClick={() => navigate('/')}
+            className="px-5 py-2.5 bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold rounded-xl transition"
+          >
+            Return to ENSEMBLE Home &rarr;
+          </button>
+        </div>
+      );
     }
 
-    if (matchedRestaurant) {
-      // Sync tenant context to this restaurant
+    // 7A. RESTAURANT-SPECIFIC CAPTAIN LOGIN (/:restaurantSlug/captain/login)
+    if (pathParts[1] === 'captain' && pathParts[2] === 'login') {
+      if (user?.role === 'captain' && user.restaurantSlug?.toLowerCase() === candidateSlug.toLowerCase()) {
+        navigate(`/${matchedRestaurant.slug}/captain`);
+        return null;
+      }
+      return (
+        <CaptainLogin
+          onNavigate={navigate}
+          restaurantSlug={matchedRestaurant.slug}
+          restaurantName={matchedRestaurant.name}
+        />
+      );
+    }
+
+    // 7B. RESTAURANT-SPECIFIC CAPTAIN FLOOR (/:restaurantSlug/captain)
+    if (pathParts[1] === 'captain') {
+      if (!user) {
+        return (
+          <CaptainLogin
+            onNavigate={navigate}
+            restaurantSlug={matchedRestaurant.slug}
+            restaurantName={matchedRestaurant.name}
+          />
+        );
+      }
+
+      // Check role
+      if (user.role !== 'captain' && user.role !== 'master_admin') {
+        return (
+          <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col items-center justify-center p-6 text-center font-sans">
+            <div className="w-12 h-12 rounded-2xl bg-rose-500/20 border border-rose-500/30 text-rose-400 flex items-center justify-center mb-4">
+              <Bell className="w-6 h-6" />
+            </div>
+            <h2 className="text-xl font-bold text-white mb-1">Captains Only</h2>
+            <p className="text-xs text-slate-400 max-w-sm mb-6">
+              You are logged in as {user.role}. This terminal is reserved for {matchedRestaurant.name} service captains.
+            </p>
+            <button
+              onClick={() => {
+                if (user.role === 'owner' || user.role === 'manager') navigate('/restaurant');
+                else navigate('/');
+              }}
+              className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold rounded-xl"
+            >
+              Go to Your Dashboard &rarr;
+            </button>
+          </div>
+        );
+      }
+
+      // Check multi-tenant captain isolation: captain cannot access another restaurant's floor
+      if (user.role === 'captain' && user.restaurantSlug && user.restaurantSlug.toLowerCase() !== candidateSlug.toLowerCase()) {
+        return (
+          <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col items-center justify-center p-6 text-center font-sans">
+            <div className="w-12 h-12 rounded-2xl bg-rose-500/20 border border-rose-500/30 text-rose-400 flex items-center justify-center mb-4">
+              <AlertCircle className="w-6 h-6" />
+            </div>
+            <h2 className="text-xl font-bold text-white mb-1">Restaurant Floor Mismatch</h2>
+            <p className="text-xs text-slate-400 max-w-md mb-6 leading-relaxed">
+              You are logged in as a captain for <span className="text-amber-300 font-bold">{user.restaurantName || user.restaurantSlug}</span>.
+              You cannot access the floor terminal of <span className="text-white font-bold">{matchedRestaurant.name}</span>.
+            </p>
+            <button
+              onClick={() => navigate(`/${user.restaurantSlug}/captain`)}
+              className="px-4 py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-black uppercase tracking-wider rounded-xl transition shadow-md shadow-amber-500/20"
+            >
+              Go to Your Restaurant's Terminal ({user.restaurantName || user.restaurantSlug}) &rarr;
+            </button>
+          </div>
+        );
+      }
+
+      // Ensure active restaurant is synced
       if (activeRestaurantSlug !== matchedRestaurant.slug) {
         setActiveRestaurantSlug(matchedRestaurant.slug);
       }
+      return <CaptainLayout />;
+    }
 
-      // Check table number in path (e.g. /radha/t/1)
-      if (pathParts[1] === 't' && pathParts[2]) {
-        const tableNum = parseInt(pathParts[2], 10);
-        if (!isNaN(tableNum) && tableNum > 0) {
-          setActiveTable(tableNum);
-        }
+    // 7C. TABLE CUSTOMER EXPERIENCE (/:restaurantSlug/t/:tableNumber)
+    if (pathParts[1] === 't' && pathParts[2]) {
+      const tableNum = parseInt(pathParts[2], 10);
+      const maxTables = matchedRestaurant.tablesCount || 20;
+
+      if (isNaN(tableNum) || tableNum <= 0 || tableNum > maxTables) {
+        return (
+          <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col items-center justify-center p-6 text-center font-sans">
+            <div className="w-16 h-16 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-400 flex items-center justify-center mb-4">
+              <AlertCircle className="w-8 h-8" />
+            </div>
+            <h2 className="text-2xl font-bold text-white font-serif mb-2">Table Not Found</h2>
+            <p className="text-sm text-slate-400 max-w-md mb-6 leading-relaxed">
+              Table <span className="font-mono text-rose-300 font-bold">#{pathParts[2]}</span> does not exist at{' '}
+              <span className="text-white font-bold">{matchedRestaurant.name}</span>. Valid dining tables are 1 through {maxTables}.
+            </p>
+            <button
+              onClick={() => navigate(`/${matchedRestaurant.slug}`)}
+              className="px-5 py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-black uppercase tracking-wider rounded-xl transition"
+            >
+              Explore {matchedRestaurant.name} Menu &rarr;
+            </button>
+          </div>
+        );
       }
+
+      // Valid table: sync restaurant and table
+      if (activeRestaurantSlug !== matchedRestaurant.slug) {
+        setActiveRestaurantSlug(matchedRestaurant.slug);
+      }
+      setActiveTable(tableNum);
 
       return (
         <div className="min-h-screen bg-slate-950 flex justify-center">
@@ -194,6 +314,19 @@ export const AppRouter: React.FC = () => {
         </div>
       );
     }
+
+    // 7D. GENERAL CUSTOMER EXPERIENCE (/:restaurantSlug)
+    if (activeRestaurantSlug !== matchedRestaurant.slug) {
+      setActiveRestaurantSlug(matchedRestaurant.slug);
+    }
+
+    return (
+      <div className="min-h-screen bg-slate-950 flex justify-center">
+        <div className="w-full max-w-md min-h-screen bg-[#fbf9f5] shadow-2xl flex flex-col relative">
+          <CustomerLayout />
+        </div>
+      </div>
+    );
   }
 
   // 8. ROOT (/) LANDING & PORTAL HUB

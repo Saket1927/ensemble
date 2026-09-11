@@ -17,6 +17,7 @@ import {
   LogOut,
   Shield,
   UserCheck,
+  AlertCircle,
 } from 'lucide-react';
 import { OverviewTab } from './OverviewTab';
 import { CustomersTab } from './CustomersTab';
@@ -74,9 +75,18 @@ export const RestaurantLayout: React.FC = () => {
   const staffMembers = user?.restaurantId ? getStaffForRestaurant(user.restaurantId) : [];
   const captainCount = staffMembers.filter((s) => s.role === 'captain').length;
 
+  const isSubscriptionExpired = activeRestaurant.expiryDate
+    ? new Date(activeRestaurant.expiryDate).getTime() < Date.now()
+    : false;
+
   const menuItems = [
     { id: 'overview', label: 'Dashboard & Operations', icon: LayoutDashboard },
-    { id: 'staff', label: 'Staff & Captains', icon: Users, badge: captainCount || undefined },
+    {
+      id: 'staff',
+      label: 'Staff & Captains',
+      icon: Users,
+      badge: activeRestaurant.planFeatures?.captainModule === false ? 'Locked' : (captainCount || undefined)
+    },
     { id: 'customers', label: 'Customers', icon: Users, badge: 'Master' },
     { id: 'visits', label: 'Visits', icon: Eye },
     { id: 'reviews', label: 'Reviews', icon: Star, badge: activeReviews.length || undefined },
@@ -237,10 +247,34 @@ export const RestaurantLayout: React.FC = () => {
           </div>
         </header>
 
+        {/* Subscription Expiry Warning Banner */}
+        {isSubscriptionExpired && (
+          <div className="bg-rose-600 text-white px-6 py-2.5 flex items-center justify-between text-xs font-semibold shadow-md shrink-0 animate-fade-in">
+            <div className="flex items-center space-x-2">
+              <AlertCircle className="w-4 h-4 shrink-0" />
+              <span>
+                License Warning: The ENSEMBLE SaaS subscription for {activeRestaurant.name} expired on {activeRestaurant.expiryDate}. Please contact Master Admin to renew service continuity.
+              </span>
+            </div>
+            <span className="px-2 py-0.5 rounded bg-rose-800 text-[10px] uppercase font-bold tracking-wider">
+              Expired
+            </span>
+          </div>
+        )}
+
         {/* Tab Content Body */}
         <main className="flex-1 p-4 sm:p-6 bg-slate-50/70">
           {activeTab === 'overview' && <OverviewTab onNavigate={setActiveTab} />}
-          {activeTab === 'staff' && <StaffTab />}
+          {activeTab === 'staff' && (
+            activeRestaurant.planFeatures?.captainModule !== false ? (
+              <StaffTab />
+            ) : (
+              <LockedFeatureBanner
+                featureName="Floor Captain & Service Staff Terminal"
+                description="Your current plan tier does not include dining room Captain terminals and real-time call management. Upgrade your subscription to unlock dedicated captain portal URLs and multi-table service dispatch."
+              />
+            )
+          )}
           {activeTab === 'customers' && <CustomersTab />}
           {activeTab === 'visits' && <VisitsTab />}
           {activeTab === 'reviews' && <ReviewsTab />}

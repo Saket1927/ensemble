@@ -23,6 +23,8 @@ import {
   Copy,
 } from 'lucide-react';
 
+import { RestaurantPlanFeatures } from '../../types/tenant';
+
 interface OnboardWizardProps {
   onClose: () => void;
 }
@@ -33,35 +35,35 @@ export const OnboardWizard: React.FC<OnboardWizardProps> = ({ onClose }) => {
 
   const [step, setStep] = useState<number>(1);
 
-  // Step 1: Restaurant Info
-  const [name, setName] = useState('HERITAGE FINE DINING');
-  const [slug, setSlug] = useState('heritage');
-  const [phone, setPhone] = useState('+91 98200 77665');
-  const [email, setEmail] = useState('hello@heritage.com');
-  const [address, setAddress] = useState('Heritage Boulevard, Bandra West, Mumbai');
-  const [cuisine, setCuisine] = useState('Awadhi & Royal Indian Regional');
+  // Step 1: Restaurant Info (Clean Defaults)
+  const [name, setName] = useState('');
+  const [slug, setSlug] = useState('');
+  const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
+  const [address, setAddress] = useState('');
+  const [cuisine, setCuisine] = useState('');
 
   // Step 2: Branding
-  const [primaryColor, setPrimaryColor] = useState('#d97706');
-  const [secondaryColor, setSecondaryColor] = useState('#92400e');
+  const [primaryColor, setPrimaryColor] = useState('#162c21');
+  const [secondaryColor, setSecondaryColor] = useState('#c5a96d');
   const [heroImageUrl, setHeroImageUrl] = useState(
     'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=1600&q=85'
   );
 
   // Step 3: Social
-  const [instagram, setInstagram] = useState('@heritage_dining');
-  const [whatsapp, setWhatsapp] = useState('+919820077665');
-  const [facebook, setFacebook] = useState('heritage.dining');
-  const [tiktok, setTiktok] = useState('@heritage_dining');
+  const [instagram, setInstagram] = useState('');
+  const [whatsapp, setWhatsapp] = useState('');
+  const [facebook, setFacebook] = useState('');
+  const [tiktok, setTiktok] = useState('');
 
   // Step 4: Menu
-  const [starterName, setStarterName] = useState('Galouti Kebab Lucknowi');
-  const [starterPrice, setStarterPrice] = useState(540);
-  const [mainName, setMainName] = useState('Murg Dum Biryani Handi');
-  const [mainPrice, setMainPrice] = useState(590);
+  const [starterName, setStarterName] = useState('');
+  const [starterPrice, setStarterPrice] = useState(350);
+  const [mainName, setMainName] = useState('');
+  const [mainPrice, setMainPrice] = useState(550);
 
   // Step 5: Tables & QR
-  const [tablesCount, setTablesCount] = useState<number>(24);
+  const [tablesCount, setTablesCount] = useState<number>(20);
 
   // Step 6: Rewards
   const [topReward, setTopReward] = useState('15% OFF Next Feast');
@@ -71,11 +73,24 @@ export const OnboardWizard: React.FC<OnboardWizardProps> = ({ onClose }) => {
   const [selectedPlan, setSelectedPlan] = useState<'Starter' | 'Growth' | 'Enterprise'>('Growth');
   const [gstPercent, setGstPercent] = useState<number>(5);
   const [serviceChargePercent, setServiceChargePercent] = useState<number>(5);
+  const [expiryDate, setExpiryDate] = useState<string>(
+    new Date(Date.now() + 365 * 86400000).toISOString().split('T')[0]
+  );
+  const [planFeatures, setPlanFeatures] = useState<RestaurantPlanFeatures>({
+    captainModule: true,
+    ordering: true,
+    socialRewards: true,
+    spinRewards: true,
+    billUpload: true,
+    customBranding: true,
+    analytics: true,
+    reviews: true,
+  });
 
   // Step 8: Restaurant Owner Account
-  const [ownerName, setOwnerName] = useState('John Doe');
-  const [ownerLoginId, setOwnerLoginId] = useState('heritage.owner');
-  const [ownerEmail, setOwnerEmail] = useState('john@heritage.com');
+  const [ownerName, setOwnerName] = useState('');
+  const [ownerLoginId, setOwnerLoginId] = useState('');
+  const [ownerEmail, setOwnerEmail] = useState('');
   const [ownerPassword, setOwnerPassword] = useState('test password');
   const [showPassword, setShowPassword] = useState(false);
 
@@ -127,6 +142,8 @@ export const OnboardWizard: React.FC<OnboardWizardProps> = ({ onClose }) => {
       hashtags: [`#${cleanSlug}`, '#EnsembleDining'],
       tablesCount,
       plan: selectedPlan,
+      planFeatures,
+      expiryDate,
       chargesConfig: {
         gstPercent,
         serviceChargePercent,
@@ -177,7 +194,7 @@ export const OnboardWizard: React.FC<OnboardWizardProps> = ({ onClose }) => {
         <div className="p-5 border-b border-slate-800 flex items-center justify-between bg-slate-900/60">
           <div>
             <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-400">
-              Step {step} of 9 • Onboard New Restaurant Tenant
+              Step {step} of 9 • Onboard New Restaurant
             </span>
             <h2 className="font-serif text-xl font-bold text-white mt-0.5">
               Provision Restaurant Infrastructure
@@ -517,14 +534,14 @@ export const OnboardWizard: React.FC<OnboardWizardProps> = ({ onClose }) => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-slate-400 mb-1">GST Tax Rate (%)</label>
                   <input
                     type="number"
                     value={gstPercent}
                     onChange={(e) => setGstPercent(Number(e.target.value))}
-                    className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white"
+                    className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white font-mono"
                   />
                 </div>
                 <div>
@@ -533,8 +550,54 @@ export const OnboardWizard: React.FC<OnboardWizardProps> = ({ onClose }) => {
                     type="number"
                     value={serviceChargePercent}
                     onChange={(e) => setServiceChargePercent(Number(e.target.value))}
-                    className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white"
+                    className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white font-mono"
                   />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-400 mb-1">Subscription Expiry Date</label>
+                  <input
+                    type="date"
+                    value={expiryDate}
+                    onChange={(e) => setExpiryDate(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white font-mono"
+                  />
+                </div>
+              </div>
+
+              {/* Feature Entitlements Checklist */}
+              <div className="pt-2 space-y-2">
+                <label className="block text-xs font-semibold text-slate-300">
+                  Feature Entitlements & Module Access
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { key: 'ordering', label: 'Table Ordering & Open Tabs' },
+                    { key: 'captainModule', label: 'Floor Captain Terminal' },
+                    { key: 'socialRewards', label: 'Instagram & Social Rewards' },
+                    { key: 'spinRewards', label: 'Spin & Win Wheel' },
+                    { key: 'billUpload', label: 'Bill Audit & Mystery Scratch' },
+                    { key: 'analytics', label: 'Revenue & CRM Analytics' },
+                    { key: 'reviews', label: 'Customer Reviews & Feedback' },
+                    { key: 'customBranding', label: 'Custom Brand Colors & Theme' },
+                  ].map((feat) => (
+                    <label
+                      key={feat.key}
+                      className="flex items-center space-x-2.5 p-2.5 bg-slate-900/80 rounded-xl border border-slate-800 hover:border-slate-700 cursor-pointer transition"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={planFeatures[feat.key as keyof RestaurantPlanFeatures] ?? true}
+                        onChange={(e) =>
+                          setPlanFeatures((prev) => ({
+                            ...prev,
+                            [feat.key]: e.target.checked,
+                          }))
+                        }
+                        className="rounded border-slate-700 bg-slate-950 text-emerald-500 focus:ring-0 w-4 h-4 cursor-pointer"
+                      />
+                      <span className="text-xs text-slate-300 font-medium">{feat.label}</span>
+                    </label>
+                  ))}
                 </div>
               </div>
             </div>
@@ -634,7 +697,7 @@ export const OnboardWizard: React.FC<OnboardWizardProps> = ({ onClose }) => {
                   {name} Successfully Onboarded!
                 </h3>
                 <p className="text-slate-400 text-xs max-w-sm mx-auto mt-1">
-                  Tenant partition, table infrastructure, and Owner authentication credentials are now active.
+                  Restaurant infrastructure, tables, and Owner authentication credentials are now active.
                 </p>
               </div>
 

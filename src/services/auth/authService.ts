@@ -174,16 +174,54 @@ class AuthService {
   public async login(
     loginIdOrEmail: string,
     password: string,
-    requiredRole?: UserRole | ('owner' | 'manager')[]
+    requiredRole?: UserRole | ('owner' | 'manager')[],
+    restaurantSlug?: string
   ): Promise<{ success: boolean; session?: AuthSession; error?: string }> {
     await this.init();
     const accounts = this.getStaffAccounts();
     const cleanId = loginIdOrEmail.trim().toLowerCase();
 
-    // Find account by loginId or email
-    let account = accounts.find(
-      (a) => a.loginId.toLowerCase() === cleanId || a.email.toLowerCase() === cleanId
-    );
+    let account: StaffAccount | undefined;
+
+    // 1. If restaurantSlug is provided, prioritize accounts belonging to that restaurant
+    if (restaurantSlug) {
+      const cleanSlug = restaurantSlug.trim().toLowerCase();
+      account = accounts.find(
+        (a) =>
+          a.restaurantSlug?.toLowerCase() === cleanSlug &&
+          (a.loginId.toLowerCase() === cleanId || a.email.toLowerCase() === cleanId)
+      );
+
+      // Also support convenient aliases inside that restaurant context (e.g. 'captain', 'captain1', 'radha.captain')
+      if (!account) {
+        if (cleanId === 'captain' || cleanId === 'captain1' || cleanId === `${cleanSlug}.captain` || cleanId === `captain.${cleanSlug}`) {
+          account = accounts.find(
+            (a) => a.restaurantSlug?.toLowerCase() === cleanSlug && a.role === 'captain'
+          );
+        } else if (cleanId === 'owner' || cleanId === `${cleanSlug}.owner` || cleanId === `owner.${cleanSlug}`) {
+          account = accounts.find(
+            (a) => a.restaurantSlug?.toLowerCase() === cleanSlug && (a.role === 'owner' || a.role === 'manager')
+          );
+        }
+      }
+
+      // If still not found, check if it's a global master_admin logging in
+      if (!account) {
+        const candidate = accounts.find(
+          (a) => a.loginId.toLowerCase() === cleanId || a.email.toLowerCase() === cleanId
+        );
+        if (candidate && candidate.role === 'master_admin') {
+          account = candidate;
+        }
+      }
+    }
+
+    // 2. Global lookup if not found in restaurant-specific lookup
+    if (!account) {
+      account = accounts.find(
+        (a) => a.loginId.toLowerCase() === cleanId || a.email.toLowerCase() === cleanId
+      );
+    }
 
     if (!account) {
       if (cleanId === 'radha' || cleanId === 'radha.owner') {
@@ -195,6 +233,17 @@ class AuthService {
 
     if (!account) {
       return { success: false, error: 'Account not found with this Login ID or Email.' };
+    }
+
+    // Verify restaurant match if restaurantSlug was specified and account is not master_admin
+    if (restaurantSlug && account.role !== 'master_admin') {
+      const cleanSlug = restaurantSlug.trim().toLowerCase();
+      if (account.restaurantSlug?.toLowerCase() !== cleanSlug) {
+        return {
+          success: false,
+          error: `This account does not belong to ${restaurantSlug}. Please check your restaurant's portal.`,
+        };
+      }
     }
 
     if (account.status === 'disabled') {

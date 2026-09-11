@@ -9,7 +9,8 @@ interface AuthContextType {
   login: (
     loginIdOrEmail: string,
     password: string,
-    requiredRole?: UserRole | ('owner' | 'manager')[]
+    requiredRole?: UserRole | ('owner' | 'manager')[],
+    restaurantSlug?: string
   ) => Promise<{ success: boolean; error?: string }>;
   logout: (redirectRoute?: string) => void;
   createStaffAccount: (data: {
@@ -53,9 +54,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const login = async (
     loginIdOrEmail: string,
     password: string,
-    requiredRole?: UserRole | ('owner' | 'manager')[]
+    requiredRole?: UserRole | ('owner' | 'manager')[],
+    restaurantSlug?: string
   ) => {
-    const res = await authService.login(loginIdOrEmail, password, requiredRole);
+    const res = await authService.login(loginIdOrEmail, password, requiredRole, restaurantSlug);
     if (res.success && res.session) {
       setSession(res.session);
       return { success: true };

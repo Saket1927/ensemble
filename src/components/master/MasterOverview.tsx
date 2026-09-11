@@ -30,7 +30,7 @@ export const MasterOverview: React.FC<MasterOverviewProps> = ({ onNavigate, onOp
     {
       label: 'Total Restaurants',
       value: PLATFORM_STATS.totalRestaurants.toString(),
-      sub: `${PLATFORM_STATS.activeRestaurants} active tenants`,
+      sub: `${PLATFORM_STATS.activeRestaurants} active restaurants`,
       icon: UtensilsCrossed,
       color: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20',
     },
@@ -79,7 +79,7 @@ export const MasterOverview: React.FC<MasterOverviewProps> = ({ onNavigate, onOp
     {
       label: 'Platform Health',
       value: '99.98%',
-      sub: 'Zero downtime across tenants',
+      sub: 'Zero downtime across restaurants',
       icon: ShieldCheck,
       color: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20',
     },
@@ -91,7 +91,7 @@ export const MasterOverview: React.FC<MasterOverviewProps> = ({ onNavigate, onOp
       <div className="bg-gradient-to-r from-slate-950 via-slate-900 to-indigo-950 p-6 rounded-3xl border border-slate-800 shadow-xl flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
         <div>
           <span className="text-[11px] font-bold uppercase tracking-widest text-emerald-400">
-            ENSEMBLE SaaS Multi-Tenant Engine
+            ENSEMBLE SaaS Multi-Restaurant Platform
           </span>
           <h2 className="text-2xl font-bold text-white mt-1">
             Global Platform Command Center
@@ -106,7 +106,7 @@ export const MasterOverview: React.FC<MasterOverviewProps> = ({ onNavigate, onOp
             onClick={() => onNavigate('restaurants')}
             className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold border border-slate-700 transition"
           >
-            Manage Tenants ({restaurants.length})
+            Manage Restaurants ({restaurants.length})
           </button>
 
           <button
@@ -155,7 +155,7 @@ export const MasterOverview: React.FC<MasterOverviewProps> = ({ onNavigate, onOp
           <div className="flex items-center justify-between">
             <div>
               <h3 className="font-bold text-sm text-white">
-                Monthly Recurring Revenue & Tenant Scale
+                Monthly Recurring Revenue & Restaurant Growth
               </h3>
               <p className="text-xs text-slate-400">
                 Aggregated subscription ARR of ₹2.21 Cr across Starter, Growth, and Enterprise plans.
@@ -200,14 +200,14 @@ export const MasterOverview: React.FC<MasterOverviewProps> = ({ onNavigate, onOp
           </div>
         </div>
 
-        {/* Live Tenant Quick Jumper */}
+        {/* Live Restaurant Quick Jumper */}
         <div className="bg-slate-950/80 rounded-2xl p-6 border border-slate-800 shadow-md space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="font-bold text-sm text-white">
-              Tenant Quick Preview
+              Restaurant Quick Switch
             </h3>
             <span className="text-[10px] font-mono text-slate-400">
-              Multi-Tenant Jumper
+              Restaurant Directory
             </span>
           </div>
 

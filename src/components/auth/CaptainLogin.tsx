@@ -2,7 +2,11 @@ import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { Bell, Lock, User, ArrowRight, AlertCircle, Eye, EyeOff, CheckCircle2 } from 'lucide-react';
 
-export const CaptainLogin: React.FC<{ onNavigate: (path: string) => void }> = ({ onNavigate }) => {
+export const CaptainLogin: React.FC<{
+  onNavigate: (path: string) => void;
+  restaurantSlug?: string;
+  restaurantName?: string;
+}> = ({ onNavigate, restaurantSlug, restaurantName }) => {
   const { login } = useAuth();
   const [loginId, setLoginId] = useState('');
   const [password, setPassword] = useState('');
@@ -19,12 +23,12 @@ export const CaptainLogin: React.FC<{ onNavigate: (path: string) => void }> = ({
 
     setError(null);
     setLoading(true);
-    // Specifically require captain role
-    const res = await login(loginId, password, 'captain');
+    // Specifically require captain role and bind to restaurantSlug if present
+    const res = await login(loginId, password, 'captain', restaurantSlug);
     setLoading(false);
 
     if (res.success) {
-      onNavigate('/captain');
+      onNavigate(restaurantSlug ? `/${restaurantSlug}/captain` : '/captain');
     } else {
       setError(res.error || 'Authentication failed');
     }
@@ -38,12 +42,16 @@ export const CaptainLogin: React.FC<{ onNavigate: (path: string) => void }> = ({
           <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-amber-500 text-slate-950 font-black text-2xl shadow-xl shadow-amber-500/20 mb-3">
             <Bell className="w-7 h-7 text-slate-950" />
           </div>
-          <h1 className="text-xl font-bold tracking-tight text-white font-serif">ENSEMBLE</h1>
+          <h1 className="text-xl font-bold tracking-tight text-white font-serif">
+            {restaurantName || 'ENSEMBLE'}
+          </h1>
           <div className="inline-flex items-center space-x-1 px-3 py-1 rounded-full bg-amber-500/20 text-[11px] font-mono font-bold text-amber-400 mt-1">
-            <span>CAPTAIN FLOOR TERMINAL</span>
+            <span>{restaurantName ? `${restaurantName.toUpperCase()} CAPTAIN FLOOR` : 'CAPTAIN FLOOR TERMINAL'}</span>
           </div>
           <p className="mt-1 text-xs text-slate-400">
-            Quick-access service station for dining room captains.
+            {restaurantName
+              ? `Service terminal for dining floor captains at ${restaurantName}.`
+              : 'Quick-access service station for dining room captains.'}
           </p>
         </div>
 

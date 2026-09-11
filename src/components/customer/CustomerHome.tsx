@@ -13,6 +13,7 @@ import {
   ArrowRight,
   ShieldCheck,
   Award,
+  Camera,
 } from 'lucide-react';
 import { InstagramIcon, FacebookIcon, WhatsAppIcon } from '../common/BrandIcons';
 
@@ -24,6 +25,7 @@ interface CustomerHomeProps {
   onOpenSpin: () => void;
   onOpenReferral: () => void;
   onOpenBillUpload?: () => void;
+  onOpenInstagramCamera?: () => void;
 }
 
 export const CustomerHome: React.FC<CustomerHomeProps> = ({
@@ -34,6 +36,7 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({
   onOpenSpin,
   onOpenReferral,
   onOpenBillUpload,
+  onOpenInstagramCamera,
 }) => {
   const { activeRestaurant, activeTable, activeReviews, canSpin } = useTenant();
 
@@ -144,7 +147,7 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({
               My Rewards
             </div>
             <div className="text-[10px] text-slate-500 mt-0.5">
-              View 2-coupon wallet
+              View active vouchers & rewards
             </div>
           </button>
         </div>
@@ -215,35 +218,34 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({
         </div>
       )}
 
-      {/* 4. Social Engagement: WANT ANOTHER SPIN? */}
+      {/* 4. Camera-First Social Engagement: SHARE YOUR EXPERIENCE */}
       <div className="px-4">
-        <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm space-y-3">
+        <div className="bg-gradient-to-br from-slate-900 via-slate-900 to-[#1e1329] rounded-2xl p-4 border border-slate-800 text-white shadow-lg space-y-3">
           <div className="flex items-start justify-between">
             <div className="space-y-1">
-              <span
-                className="text-[10px] font-bold uppercase tracking-widest"
-                style={{ color: secondaryColor }}
-              >
-                Social Reward
+              <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider bg-pink-500/20 text-pink-300 border border-pink-500/30">
+                <Camera className="w-3 h-3" />
+                <span>Camera-First Privilege</span>
               </span>
-              <h2 className="font-serif text-base font-bold text-slate-900">
-                Want Another Spin?
+              <h2 className="font-serif text-base font-bold text-white">
+                Share Your Experience
               </h2>
-              <p className="text-xs text-slate-600 leading-relaxed">
-                Share your {activeRestaurant.name} experience on Instagram or WhatsApp, tag us, and unlock an extra reward spin!
+              <p className="text-xs text-slate-300 leading-relaxed">
+                Take or choose a photo, tag {activeRestaurant.name} on Instagram, and earn an extra reward spin!
               </p>
             </div>
-            <div className="p-2.5 rounded-xl bg-amber-50 text-amber-700">
-              <Share2 className="w-5 h-5" />
+            <div className="p-2.5 rounded-xl bg-pink-500/20 text-pink-400 border border-pink-500/30">
+              <Camera className="w-5 h-5" />
             </div>
           </div>
 
           <button
-            onClick={onOpenSocial}
-            className="w-full py-2.5 px-4 rounded-xl text-xs font-bold uppercase tracking-wider text-slate-900 border border-slate-300 hover:bg-slate-50 transition flex items-center justify-center space-x-2"
+            onClick={onOpenInstagramCamera || onOpenSocial}
+            className="w-full py-2.5 px-4 rounded-xl text-xs font-bold uppercase tracking-wider text-slate-950 bg-gradient-to-r from-amber-400 to-amber-300 hover:from-amber-300 hover:to-amber-200 transition flex items-center justify-center space-x-2 shadow-md shadow-amber-950/40"
           >
-            <span>Earn More Rewards</span>
-            <ArrowRight className="w-3.5 h-3.5" />
+            <Camera className="w-4 h-4 text-slate-950" />
+            <span>Open Camera & Earn Spin</span>
+            <ArrowRight className="w-3.5 h-3.5 text-slate-950" />
           </button>
         </div>
       </div>

@@ -117,7 +117,7 @@ export const GlobalCustomersDirectory: React.FC = () => {
             <thead className="bg-slate-900/80 text-slate-400 uppercase tracking-wider text-[10px] border-b border-slate-800">
               <tr>
                 <th className="p-3.5">Customer & Phone</th>
-                <th className="p-3.5">Frequented Tenants</th>
+                <th className="p-3.5">Frequented Restaurants</th>
                 <th className="p-3.5">Total Visits</th>
                 <th className="p-3.5">Lifetime Platform Spend</th>
                 <th className="p-3.5">Avg Bill</th>
@@ -229,7 +229,7 @@ export const GlobalCustomersDirectory: React.FC = () => {
 
             <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl text-[11px] text-amber-200">
               <ShieldCheck className="w-4 h-4 text-amber-400 inline mr-1" />
-              Tenant Isolation Check: This cross-restaurant record is strictly restricted to Master Admin and cannot be accessed by individual restaurant dashboards.
+              Restaurant Isolation Check: This cross-restaurant record is strictly restricted to Master Admin and cannot be accessed by individual restaurant dashboards.
             </div>
 
             <button

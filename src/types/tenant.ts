@@ -31,6 +31,8 @@ export interface RestaurantPlanFeatures {
   spinRewards: boolean;
   billUpload: boolean;
   customBranding: boolean;
+  analytics?: boolean;
+  reviews?: boolean;
 }
 
 export interface ChargesConfig {
@@ -69,6 +71,7 @@ export interface Restaurant {
   tablesCount: number;
   openingTime?: string;
   closingTime?: string;
+  expiryDate?: string;
 }
 
 export interface MenuItem {

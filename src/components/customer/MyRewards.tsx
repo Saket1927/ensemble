@@ -53,8 +53,16 @@ export const MyRewards: React.FC<MyRewardsProps> = ({ onOpenSpin, onOpenEarnMore
   );
 
   const activeCoupon = myCoupons.find((c) => c.slot === 'active' && c.status === 'held');
-  const queuedCoupon = myCoupons.find((c) => c.slot === 'queued' && c.status === 'held');
+  const queuedCoupons = myCoupons.filter((c) => c.slot === 'queued' && c.status === 'held');
   const pastCoupons = myCoupons.filter((c) => c.status === 'redeemed' || c.status === 'expired');
+
+  const isActiveExpired = activeCoupon?.expiresAt && !isNaN(Date.parse(activeCoupon.expiresAt))
+    ? new Date(activeCoupon.expiresAt).getTime() < Date.now()
+    : false;
+
+  const daysLeft = activeCoupon?.expiresAt && !isNaN(Date.parse(activeCoupon.expiresAt))
+    ? Math.max(0, Math.ceil((new Date(activeCoupon.expiresAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
+    : 20;
 
   return (
     <div className="space-y-5 px-4 pt-2 animate-fade-in pb-24">
@@ -64,13 +72,13 @@ export const MyRewards: React.FC<MyRewardsProps> = ({ onOpenSpin, onOpenEarnMore
           className="text-[10px] font-bold uppercase tracking-widest block"
           style={{ color: secondaryColor }}
         >
-          Section 13: Unified 2-Coupon Engine
+          Customer Privileges & Rewards
         </span>
         <h1 className="font-serif text-2xl font-bold text-slate-900">
           My Privileges Wallet
         </h1>
         <p className="text-xs text-slate-500 mt-0.5">
-          Hold up to 2 coupons at a time (1 active for now, 1 queued for your next visit).
+          1 active voucher usable per visit. Additional earned rewards are reserved for your next visits.
         </p>
       </div>
 
@@ -106,26 +114,30 @@ export const MyRewards: React.FC<MyRewardsProps> = ({ onOpenSpin, onOpenEarnMore
         </div>
       )}
 
-      {/* 2-Coupon Holding Slots (Section 13) */}
+      {/* 1-Active-Coupon Rule Engine */}
       <div className="space-y-3">
         <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center justify-between">
-          <span>Held Coupons (Max 2 Slots)</span>
+          <span>Active Table Voucher (Usable Today)</span>
           <span className="text-[10px] font-bold text-slate-500">
-            {(activeCoupon ? 1 : 0) + (queuedCoupon ? 1 : 0)} / 2 Slots Occupied
+            {activeCoupon ? '1 Active Voucher' : '0 Active'}
           </span>
         </h3>
 
-        {/* Slot 1: Active Coupon (Usable Now) */}
+        {/* Slot: Active Coupon (Usable Now) */}
         <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm space-y-3 relative overflow-hidden">
           <div className="flex items-center justify-between">
-            <span className="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
-              Slot 1: Active (Usable Now)
+            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider ${
+              isActiveExpired
+                ? 'bg-rose-100 text-rose-800'
+                : 'bg-emerald-100 text-emerald-800'
+            }`}>
+              {isActiveExpired ? 'Voucher Expired' : 'Active Voucher (Redeemable Today)'}
             </span>
             {activeCoupon && (
               <button
                 onClick={() => deleteCoupon(activeCoupon.id)}
                 className="text-slate-400 hover:text-rose-600 transition-colors p-1"
-                title="Manually delete coupon anytime"
+                title="Discard voucher"
               >
                 <Trash2 className="w-4 h-4" />
               </button>
@@ -153,10 +165,16 @@ export const MyRewards: React.FC<MyRewardsProps> = ({ onOpenSpin, onOpenEarnMore
               </div>
 
               {/* 20-day clock expiry tracker */}
-              <div className="flex items-center space-x-1 text-[11px] text-slate-600 bg-slate-50 p-2 rounded-xl">
-                <Clock className="w-3.5 h-3.5 text-amber-600" />
+              <div className={`flex items-center space-x-1 text-[11px] p-2 rounded-xl ${
+                isActiveExpired ? 'bg-rose-50 text-rose-700' : 'bg-slate-50 text-slate-600'
+              }`}>
+                <Clock className={`w-3.5 h-3.5 ${isActiveExpired ? 'text-rose-600' : 'text-amber-600'}`} />
                 <span>
-                  Expires: <strong className="text-slate-900">20 days from activation</strong>
+                  {isActiveExpired ? (
+                    <strong>Expired (exceeded 20-day limit)</strong>
+                  ) : (
+                    <>Validity: <strong className="text-slate-900">{daysLeft} days remaining</strong> (20 days from activation)</>
+                  )}
                 </span>
               </div>
 
@@ -170,82 +188,98 @@ export const MyRewards: React.FC<MyRewardsProps> = ({ onOpenSpin, onOpenEarnMore
                   <span>{copiedCode === activeCoupon.voucherCode ? 'Copied ✓' : activeCoupon.voucherCode}</span>
                 </button>
 
-                <button
-                  onClick={() => setSelectedVoucherForQr(activeCoupon)}
-                  className="py-1.5 px-3 rounded-lg text-xs font-bold text-white shadow transition-transform active:scale-95 flex items-center space-x-1"
-                  style={{ backgroundColor: primaryColor }}
-                >
-                  <QrCode className="w-3.5 h-3.5" />
-                  <span>Show QR at Billing</span>
-                </button>
+                {!isActiveExpired ? (
+                  <button
+                    onClick={() => setSelectedVoucherForQr(activeCoupon)}
+                    className="py-1.5 px-3 rounded-lg text-xs font-bold text-white shadow transition-transform active:scale-95 flex items-center space-x-1"
+                    style={{ backgroundColor: primaryColor }}
+                  >
+                    <QrCode className="w-3.5 h-3.5" />
+                    <span>Show QR at Billing</span>
+                  </button>
+                ) : (
+                  <span className="text-[11px] font-bold text-rose-600 px-2 py-1 bg-rose-50 rounded-lg">
+                    Expired
+                  </span>
+                )}
               </div>
             </div>
           ) : (
             <div className="py-4 text-center text-slate-400 text-xs">
-              <p className="font-semibold">Empty Active Slot</p>
+              <p className="font-semibold">No active voucher for current table</p>
               <p className="text-[11px] text-slate-400 mt-0.5">
-                Spin the wheel or leave a review to unlock an instant discount.
+                Spin the wheel or leave a 5-star review to unlock an instant discount.
               </p>
             </div>
           )}
         </div>
 
-        {/* Slot 2: Queued Coupon (Next Visit) */}
-        <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm space-y-3 relative overflow-hidden">
-          <div className="flex items-center justify-between">
-            <span className="bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
-              Slot 2: Queued (Next Visit)
+        {/* Next-Visit Queued Rewards List */}
+        <div className="space-y-2 pt-2">
+          <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center justify-between">
+            <span>Next-Visit Rewards ({queuedCoupons.length})</span>
+            <span className="text-[10px] text-slate-500 font-medium">
+              Activates on your future visits
             </span>
-            {queuedCoupon && (
-              <button
-                onClick={() => deleteCoupon(queuedCoupon.id)}
-                className="text-slate-400 hover:text-rose-600 transition-colors p-1"
-                title="Manually delete coupon anytime"
+          </h3>
+
+          {queuedCoupons.length > 0 ? (
+            queuedCoupons.map((queued) => (
+              <div
+                key={queued.id}
+                className="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm space-y-2 relative overflow-hidden"
               >
-                <Trash2 className="w-4 h-4" />
-              </button>
-            )}
-          </div>
-
-          {queuedCoupon ? (
-            <div className="space-y-2">
-              <div className="flex items-start justify-between">
-                <div>
-                  <h4 className="font-serif font-bold text-base text-slate-900">
-                    {queuedCoupon.rewardLabel}
-                  </h4>
-                  <p className="text-[10px] text-slate-500 font-mono mt-0.5">
-                    Source: {queuedCoupon.source.replace(/_/g, ' ').toUpperCase()}
-                  </p>
-                </div>
-                <div className="text-right">
-                  <span className="text-base font-bold text-slate-700">
-                    {queuedCoupon.discountType === 'percentage'
-                      ? `${queuedCoupon.discountValue}% OFF`
-                      : `₹${queuedCoupon.discountValue} OFF`}
+                <div className="flex items-center justify-between">
+                  <span className="bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
+                    Next Visit Reward
                   </span>
+                  <button
+                    onClick={() => deleteCoupon(queued.id)}
+                    className="text-slate-400 hover:text-rose-600 transition-colors p-1"
+                    title="Discard reward"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
                 </div>
-              </div>
 
-              <div className="flex items-center space-x-1 text-[11px] text-amber-800 bg-amber-50 p-2 rounded-xl">
-                <Clock className="w-3.5 h-3.5 text-amber-600" />
-                <span>20-day expiry clock starts fresh upon activation on your next visit</span>
-              </div>
+                <div className="flex items-start justify-between">
+                  <div>
+                    <h4 className="font-serif font-bold text-base text-slate-900">
+                      {queued.rewardLabel}
+                    </h4>
+                    <p className="text-[10px] text-slate-500 font-mono mt-0.5">
+                      Source: {queued.source.replace(/_/g, ' ').toUpperCase()}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-base font-bold text-slate-700">
+                      {queued.discountType === 'percentage'
+                        ? `${queued.discountValue}% OFF`
+                        : `₹${queued.discountValue} OFF`}
+                    </span>
+                  </div>
+                </div>
 
-              {!activeCoupon && (
-                <button
-                  onClick={() => activateQueuedCoupon(queuedCoupon.id)}
-                  className="w-full py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow"
-                >
-                  Activate for Current Table Now
-                </button>
-              )}
-            </div>
+                <div className="flex items-center space-x-1 text-[11px] text-amber-800 bg-amber-50 p-2 rounded-xl">
+                  <Clock className="w-3.5 h-3.5 text-amber-600" />
+                  <span>20-day validity starts fresh when activated on your next dining visit</span>
+                </div>
+
+                {!activeCoupon && (
+                  <button
+                    onClick={() => activateQueuedCoupon(queued.id)}
+                    className="w-full py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow transition"
+                  >
+                    Activate for Current Table Now
+                  </button>
+                )}
+              </div>
+            ))
           ) : (
-            <div className="py-4 text-center text-slate-400 text-xs">
-              <p className="font-semibold">Empty Queued Slot</p>
+            <div className="bg-white rounded-2xl p-4 border border-dashed border-slate-300 text-center text-slate-400 text-xs">
+              <p className="font-semibold">No queued next-visit rewards yet</p>
               <p className="text-[11px] text-slate-400 mt-0.5">
-                Share on Instagram to earn a next-visit voucher reward.
+                Post an Instagram story or photo to earn an exclusive next-visit dining reward!
               </p>
             </div>
           )}

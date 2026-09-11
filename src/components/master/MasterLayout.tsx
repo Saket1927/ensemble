@@ -151,10 +151,10 @@ export const MasterLayout: React.FC = () => {
           <div>
             <div className="flex items-center space-x-2">
               <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
-                Multi-Tenant Architecture
+                Multi-Restaurant Platform
               </span>
               <span className="text-xs text-slate-400">
-                {restaurants.length} Registered Tenants
+                {restaurants.length} Registered Restaurants
               </span>
             </div>
             <h1 className="text-xl font-bold text-white mt-1 capitalize">
@@ -165,7 +165,7 @@ export const MasterLayout: React.FC = () => {
           <div className="flex items-center space-x-3">
             {/* Direct Restaurant Quick Link */}
             <div className="flex items-center space-x-2 bg-slate-900 px-3 py-1.5 rounded-xl border border-slate-700 text-xs">
-              <span className="text-slate-400">Tenant:</span>
+              <span className="text-slate-400">Restaurant:</span>
               <select
                 value={activeRestaurant.slug}
                 onChange={(e) => setActiveRestaurantSlug(e.target.value)}
@@ -191,7 +191,7 @@ export const MasterLayout: React.FC = () => {
               className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold uppercase tracking-wider flex items-center space-x-1.5 transition shadow-sm"
             >
               <Plus className="w-3.5 h-3.5" />
-              <span>New Tenant</span>
+              <span>Add Restaurant</span>
             </button>
 
             <button

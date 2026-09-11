@@ -143,7 +143,7 @@ export const RestaurantsList: React.FC<{ onOpenOnboard: () => void }> = ({ onOpe
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <div>
           <h2 className="text-lg font-bold text-white font-serif">
-            All Registered Restaurant Tenants
+            All Registered Restaurants
           </h2>
           <p className="text-xs text-slate-400">
             Full directory of subscribed restaurant accounts, plans, staff access, and traffic metrics.
@@ -313,7 +313,7 @@ export const RestaurantsList: React.FC<{ onOpenOnboard: () => void }> = ({ onOpe
                     Staff & Access Control — {staffModalRestaurant.name}
                   </h3>
                   <p className="text-xs text-slate-400">
-                    Manage Owner, Manager, and Captain accounts for this tenant partition.
+                    Manage Owner, Manager, and Captain accounts for this restaurant.
                   </p>
                 </div>
               </div>

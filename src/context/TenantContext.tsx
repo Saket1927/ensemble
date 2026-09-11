@@ -855,7 +855,7 @@ export const TenantProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     resetTable(tableNumber);
   };
 
-  // Section 13: Unified 2-Coupon Engine
+  // Section 13: 1-Active-Coupon Rule & Next-Visit Rewards Engine
   const addUnifiedCoupon = (
     couponData: Omit<UnifiedCoupon, 'id' | 'createdAt' | 'status'>
   ): { status: 'held' | 'queued' | 'limit_reached'; coupon?: UnifiedCoupon } => {
@@ -867,18 +867,13 @@ export const TenantProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         c.status === 'held'
     );
 
-    let slot: 'active' | 'queued' = 'active';
-    let expiresAt = new Date(Date.now() + 20 * 86400000).toISOString(); // 20-day clock on activation
-
-    if (existingHeld.length === 0) {
-      slot = 'active';
-    } else if (existingHeld.length === 1) {
-      slot = 'queued';
-      expiresAt = 'Starts fresh upon activation (20 days)';
-    } else {
-      // Already holds 2 coupons!
-      return { status: 'limit_reached' };
-    }
+    // Business Rule: Diners can only have ONE active coupon at a time.
+    // Any newly earned reward automatically becomes a NEXT-VISIT reward (queued).
+    const hasActive = existingHeld.some((c) => c.slot === 'active');
+    const slot: 'active' | 'queued' = hasActive ? 'queued' : 'active';
+    const expiresAt = slot === 'active'
+      ? new Date(Date.now() + 20 * 86400000).toISOString() // 20-day clock on activation
+      : 'Valid for 20 days once activated on your next visit';
 
     const newCoupon: UnifiedCoupon = {
       ...couponData,
@@ -1023,7 +1018,7 @@ export const TenantProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
   // Restaurant Admin actions
   const addRestaurant = (newRest: Partial<Restaurant>): Restaurant => {
-    const slug = (newRest.name || 'restaurant')
+    const slug = (newRest.slug || newRest.name || 'restaurant')
       .toLowerCase()
       .replace(/[^a-z0-9]/g, '');
     const id = `rest_${slug}_${Date.now().toString().slice(-4)}`;
@@ -1047,19 +1042,22 @@ export const TenantProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       googleReviewUrl: newRest.googleReviewUrl || `https://g.page/r/${slug}/review`,
       status: 'active',
       plan: newRest.plan || 'Growth',
-      planFeatures: {
+      planFeatures: newRest.planFeatures || {
         captainModule: true,
         ordering: true,
         socialRewards: true,
         spinRewards: true,
         billUpload: true,
         customBranding: true,
+        analytics: true,
+        reviews: true,
       },
-      chargesConfig: {
+      chargesConfig: newRest.chargesConfig || {
         gstPercent: 5,
         serviceChargePercent: 5,
         packagingFee: 30,
       },
+      expiryDate: newRest.expiryDate || new Date(Date.now() + 365 * 86400000).toISOString().split('T')[0],
       mrr: newRest.plan === 'Enterprise' ? 14999 : 7999,
       createdAt: new Date().toISOString().split('T')[0],
       branding: {

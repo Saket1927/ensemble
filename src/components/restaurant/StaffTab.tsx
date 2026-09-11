@@ -19,6 +19,9 @@ import {
   Edit2,
   X,
   Table,
+  Copy,
+  ExternalLink,
+  Check,
 } from 'lucide-react';
 import { StaffAccount } from '../../services/auth/authTypes';
 
@@ -57,6 +60,17 @@ export const StaffTab: React.FC = () => {
   const captainList = staffList.filter((s) => s.role === 'captain');
   const displayList = activeSubTab === 'captains' ? captainList : staffList;
 
+  const [copiedCaptainUrl, setCopiedCaptainUrl] = useState(false);
+  const captainPortalUrl = typeof window !== 'undefined'
+    ? `${window.location.origin}/${activeRestaurant.slug}/captain/login`
+    : `/${activeRestaurant.slug}/captain/login`;
+
+  const handleCopyCaptainUrl = () => {
+    navigator.clipboard.writeText(captainPortalUrl);
+    setCopiedCaptainUrl(true);
+    setTimeout(() => setCopiedCaptainUrl(false), 2500);
+  };
+
   const handleCreateCaptain = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!fullName || !loginId || !password) {
@@ -79,7 +93,7 @@ export const StaffTab: React.FC = () => {
     });
 
     if (res.success) {
-      setSuccessMessage(`Captain "${fullName}" created successfully with Login ID: ${loginId}`);
+      setSuccessMessage(`Captain "${fullName}" created successfully with Login ID: ${loginId}! Captain Portal: ${captainPortalUrl}`);
       setShowAddModal(false);
       setFullName('');
       setLoginId('');
@@ -161,6 +175,48 @@ export const StaffTab: React.FC = () => {
           <span>{successMessage}</span>
         </div>
       )}
+
+      {/* Dedicated Captain Login Portal Link */}
+      <div className="bg-gradient-to-r from-amber-950/30 via-slate-900 to-slate-900 border border-amber-500/30 rounded-2xl p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div className="flex items-center space-x-3.5">
+          <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-400 border border-amber-500/30 flex items-center justify-center shrink-0">
+            <Key className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="text-sm font-bold text-white flex items-center space-x-2">
+              <span>{activeRestaurant.name} Captain Terminal Portal</span>
+              <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 text-[10px] font-mono font-bold uppercase tracking-wider">
+                Direct Portal
+              </span>
+            </div>
+            <p className="text-xs text-slate-400 mt-0.5">
+              Service captains sign in via this URL to manage table orders, service calls, and dining floors.
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center space-x-2 w-full md:w-auto">
+          <div className="bg-slate-950 px-3 py-2 rounded-xl border border-slate-800 text-xs font-mono text-amber-300 select-all truncate max-w-xs sm:max-w-sm">
+            {captainPortalUrl}
+          </div>
+          <button
+            onClick={handleCopyCaptainUrl}
+            className="px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold transition flex items-center space-x-1.5 shrink-0 shadow-sm"
+          >
+            {copiedCaptainUrl ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+            <span>{copiedCaptainUrl ? 'Copied!' : 'Copy Link'}</span>
+          </button>
+          <a
+            href={captainPortalUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition shrink-0"
+            title="Open Captain Terminal in new tab"
+          >
+            <ExternalLink className="w-4 h-4" />
+          </a>
+        </div>
+      </div>
 
       {/* Filter Tabs */}
       <div className="flex items-center space-x-2 border-b border-slate-800 pb-2">
@@ -429,13 +485,13 @@ export const StaffTab: React.FC = () => {
                   <label className="block text-xs font-semibold text-slate-300 mb-1">
                     Email Address (optional)
                   </label>
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="captain@heritage.com"
-                    className="w-full px-3.5 py-2 bg-slate-950 border border-slate-700 rounded-xl text-sm text-white placeholder:text-slate-600 focus:outline-none focus:border-amber-500"
-                  />
+                    <input
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder={`captain@${activeRestaurant.slug}.com`}
+                      className="w-full px-3.5 py-2 bg-slate-950 border border-slate-700 rounded-xl text-sm text-white placeholder:text-slate-600 focus:outline-none focus:border-amber-500"
+                    />
                 </div>
               </div>
 
