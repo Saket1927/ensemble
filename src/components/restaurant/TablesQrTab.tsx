@@ -10,6 +10,8 @@ import {
   ShieldCheck,
   FileCode,
   Image as ImageIcon,
+  AlertCircle,
+  Globe,
 } from 'lucide-react';
 import { StandardQRCode } from '../common/StandardQRCode';
 import {
@@ -32,13 +34,16 @@ export const TablesQrTab: React.FC = () => {
   const [copiedUrl, setCopiedUrl] = useState<string | null>(null);
   const [successNotice, setSuccessNotice] = useState<string | null>(null);
   const [downloading, setDownloading] = useState(false);
+  const [domainOverride, setDomainOverride] = useState<string>('');
+
+  const getUrl = (tNum: number) => getTableCanonicalUrl(activeRestaurant.slug, tNum, domainOverride);
 
   const handleOpenCustomerAtTable = (tNum: number) => {
     window.open(`/${activeRestaurant.slug}/t/${tNum}`, '_blank');
   };
 
   const handleCopyLink = (tNum: number) => {
-    const url = getTableCanonicalUrl(activeRestaurant.slug, tNum);
+    const url = getUrl(tNum);
     navigator.clipboard.writeText(url);
     setCopiedUrl(url);
     setTimeout(() => setCopiedUrl(null), 2000);
@@ -53,6 +58,7 @@ export const TablesQrTab: React.FC = () => {
         tableNumber: tNum,
         primaryColor: activeRestaurant.branding?.primaryColor || '#1c1917',
         accentColor: activeRestaurant.branding?.secondaryColor || '#d97706',
+        customOrigin: domainOverride,
       });
       downloadFile(svg, `${activeRestaurant.slug}-table-${tNum}-standee.svg`);
       setSuccessNotice(`Table #${tNum} Standee SVG downloaded successfully!`);
@@ -67,7 +73,7 @@ export const TablesQrTab: React.FC = () => {
   const handleDownloadPureQrSvg = async (tNum: number) => {
     setDownloading(true);
     try {
-      const url = getTableCanonicalUrl(activeRestaurant.slug, tNum);
+      const url = getUrl(tNum);
       const svg = await generateQRCodeSVG(url, { errorCorrectionLevel: 'Q', margin: 4 });
       downloadFile(svg, `${activeRestaurant.slug}-table-${tNum}-qr.svg`);
       setSuccessNotice(`Table #${tNum} Pure QR SVG downloaded!`);
@@ -82,7 +88,7 @@ export const TablesQrTab: React.FC = () => {
   const handleDownloadPng = async (tNum: number) => {
     setDownloading(true);
     try {
-      const url = getTableCanonicalUrl(activeRestaurant.slug, tNum);
+      const url = getUrl(tNum);
       const dataUrl = await generateQRCodeDataURL(url, {
         errorCorrectionLevel: 'Q',
         margin: 4,
@@ -99,7 +105,6 @@ export const TablesQrTab: React.FC = () => {
   };
 
   const handleBulkPrint = async () => {
-    // Open a printable page containing standees for all tables
     const printWindow = window.open('', '_blank');
     if (!printWindow) {
       alert('Please allow popups to open the bulk print standee view.');
@@ -114,6 +119,7 @@ export const TablesQrTab: React.FC = () => {
         tableNumber: t.tableNumber,
         primaryColor: activeRestaurant.branding?.primaryColor || '#1c1917',
         accentColor: activeRestaurant.branding?.secondaryColor || '#d97706',
+        customOrigin: domainOverride,
       });
       standeesHtml += `<div class="standee-page">${svg}</div>`;
     }
@@ -167,6 +173,54 @@ export const TablesQrTab: React.FC = () => {
         </div>
       </div>
 
+      {/* Vercel Deployment Protection Troubleshooting Guide (Critical for QR Scanning) */}
+      <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl text-xs text-amber-900 space-y-2">
+        <div className="flex items-center space-x-2 font-bold text-amber-950">
+          <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+          <span>If scanning opens a "Log in with Vercel" screen on your phone:</span>
+        </div>
+        <p className="text-slate-700 leading-relaxed text-[11px]">
+          By default, Vercel automatically enables <strong>Deployment Protection ("Vercel Authentication")</strong> on all deployments. This forces visitors without a Vercel login cookie to sign in to Vercel before viewing the website.
+        </p>
+        <div className="bg-white/80 p-3 rounded-xl border border-amber-200/80 space-y-1 text-[11px] text-slate-800">
+          <div className="font-bold text-slate-900">How to disable it in 15 seconds (1-time fix):</div>
+          <div>1. Open your Vercel Dashboard at <a href="https://vercel.com/dashboard" target="_blank" rel="noreferrer" className="text-amber-700 underline font-semibold">vercel.com/dashboard</a></div>
+          <div>2. Select your <strong>ensemble</strong> project &rarr; go to <strong>Settings</strong> (top tab) &rarr; <strong>Deployment Protection</strong> (left sidebar)</div>
+          <div>3. Under <strong>Vercel Authentication</strong>, turn the toggle <strong>OFF (Disabled)</strong> &rarr; click <strong>Save</strong>.</div>
+        </div>
+      </div>
+
+      {/* Domain Customization Bar */}
+      <div className="p-4 bg-white rounded-2xl border border-slate-200 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
+        <div className="flex items-center space-x-2">
+          <Globe className="w-4 h-4 text-slate-500 shrink-0" />
+          <div>
+            <span className="font-bold text-slate-900">Target QR Domain: </span>
+            <span className="font-mono text-emerald-600 font-semibold">
+              {domainOverride || (typeof window !== 'undefined' ? window.location.origin : `https://${activeRestaurant.slug}.ensemble.com`)}
+            </span>
+          </div>
+        </div>
+
+        <div className="flex items-center space-x-2 w-full sm:w-auto">
+          <input
+            type="text"
+            placeholder="Custom domain (e.g. https://your-domain.com)"
+            value={domainOverride}
+            onChange={(e) => setDomainOverride(e.target.value)}
+            className="px-3 py-1.5 bg-slate-50 border border-slate-300 rounded-xl text-xs w-full sm:w-64 focus:outline-none focus:border-amber-500 font-mono"
+          />
+          {domainOverride && (
+            <button
+              onClick={() => setDomainOverride('')}
+              className="px-2 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg text-xs"
+            >
+              Reset
+            </button>
+          )}
+        </div>
+      </div>
+
       {successNotice && (
         <div className="p-3.5 bg-emerald-50 text-emerald-800 text-xs font-semibold rounded-xl border border-emerald-200 flex items-center space-x-2 animate-slide-up">
           <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
@@ -177,7 +231,7 @@ export const TablesQrTab: React.FC = () => {
       {/* Tables Grid with Genuine QR Code Previews */}
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3.5">
         {activeTables.map((t) => {
-          const tableUrl = getTableCanonicalUrl(activeRestaurant.slug, t.tableNumber);
+          const tableUrl = getUrl(t.tableNumber);
           return (
             <div
               key={t.tableNumber}
@@ -281,7 +335,7 @@ export const TablesQrTab: React.FC = () => {
               {/* Strict Clean White Area with 4-Module Quiet Zone */}
               <div className="w-44 h-44 mx-auto bg-white p-2 rounded-2xl shadow-xl flex items-center justify-center">
                 <StandardQRCode
-                  url={getTableCanonicalUrl(activeRestaurant.slug, selectedTableForQr)}
+                  url={getUrl(selectedTableForQr)}
                   size={160}
                   showVerifiedBadge={false}
                   errorCorrectionLevel="Q"
@@ -292,7 +346,7 @@ export const TablesQrTab: React.FC = () => {
                 TABLE #{selectedTableForQr}
               </div>
               <div className="text-[9px] text-slate-300 font-mono break-all px-2">
-                {getTableCanonicalUrl(activeRestaurant.slug, selectedTableForQr)}
+                {getUrl(selectedTableForQr)}
               </div>
             </div>
 

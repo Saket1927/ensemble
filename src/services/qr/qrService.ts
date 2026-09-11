@@ -12,8 +12,12 @@ export interface QROptions {
  * If in browser and not localhost, uses window.location.origin (e.g. https://ensemble-xxx.vercel.app/heritage/t/1)
  * Otherwise defaults to standard production URL https://heritage.ensemble.com/t/1
  */
-export function getTableCanonicalUrl(restaurantSlug: string, tableNumber: number): string {
+export function getTableCanonicalUrl(restaurantSlug: string, tableNumber: number, customOrigin?: string): string {
   const cleanSlug = restaurantSlug.toLowerCase().trim();
+  if (customOrigin && customOrigin.trim()) {
+    const cleanOrigin = customOrigin.trim().replace(/\/$/, '');
+    return `${cleanOrigin}/${cleanSlug}/t/${tableNumber}`;
+  }
   if (typeof window !== 'undefined' && window.location && window.location.origin) {
     const origin = window.location.origin;
     if (!origin.includes('localhost') && !origin.includes('127.0.0.1')) {
@@ -120,8 +124,9 @@ export async function buildPrintableStandeeSVG(params: {
   tableNumber: number;
   primaryColor?: string;
   accentColor?: string;
+  customOrigin?: string;
 }): Promise<string> {
-  const url = getTableCanonicalUrl(params.restaurantSlug, params.tableNumber);
+  const url = getTableCanonicalUrl(params.restaurantSlug, params.tableNumber, params.customOrigin);
   const qrSvgRaw = await generateQRCodeSVG(url, { errorCorrectionLevel: 'Q', margin: 4 });
 
   // Extract the inner path from the generated QR SVG so we can embed it into the standee
