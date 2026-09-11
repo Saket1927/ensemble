@@ -13,16 +13,23 @@ export interface QROptions {
  * Otherwise defaults to standard production URL https://heritage.ensemble.com/t/1
  */
 export function getTableCanonicalUrl(restaurantSlug: string, tableNumber: number, customOrigin?: string): string {
-  const cleanSlug = restaurantSlug.toLowerCase().trim();
+  const cleanSlug = (restaurantSlug || 'radha').toLowerCase().trim();
+  const safeTableNum = Math.max(1, Number(tableNumber) || 1);
+
   if (customOrigin && customOrigin.trim()) {
-    const cleanOrigin = customOrigin.trim().replace(/\/$/, '');
-    return `${cleanOrigin}/${cleanSlug}/t/${tableNumber}`;
+    let cleanOrigin = customOrigin.trim().replace(/\/$/, '');
+    if (!cleanOrigin.startsWith('http://') && !cleanOrigin.startsWith('https://')) {
+      cleanOrigin = `https://${cleanOrigin}`;
+    }
+    return `${cleanOrigin}/${cleanSlug}/t/${safeTableNum}`;
   }
+
   if (typeof window !== 'undefined' && window.location && window.location.origin) {
     const origin = window.location.origin.replace(/\/$/, '');
-    return `${origin}/${cleanSlug}/t/${tableNumber}`;
+    return `${origin}/${cleanSlug}/t/${safeTableNum}`;
   }
-  return `https://ensemble-mqjlz2le8-ensemble6.vercel.app/${cleanSlug}/t/${tableNumber}`;
+
+  return `https://ensemble-restaurant.vercel.app/${cleanSlug}/t/${safeTableNum}`;
 }
 
 /**

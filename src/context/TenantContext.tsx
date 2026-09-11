@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { realtimeHub } from '../services/realtime/realtimeService';
 import {
   Restaurant,
   MenuItem,
@@ -689,6 +690,194 @@ export const TenantProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   const activeCampaigns = campaignsMap[activeRestaurantId] || [];
   const activeOrders = orders.filter((o) => o.restaurantId === activeRestaurantId);
 
+  // Real-Time Cross-Device Synchronization Hub Subscription
+  useEffect(() => {
+    if (!activeRestaurant?.slug) return;
+    const unsub = realtimeHub.subscribe(activeRestaurant.slug, (envelope) => {
+      const { type, tableNumber, payload, restaurantId } = envelope;
+
+      if (type === 'TABLE_SCAN' && tableNumber) {
+        const targetRestId = restaurantId || activeRestaurantId;
+        setTablesMap((prev) => {
+          const list = prev[targetRestId] || [];
+          const updated = list.map((t) => {
+            if (t.tableNumber === tableNumber) {
+              return {
+                ...t,
+                status: 'occupied' as const,
+                totalScans: (t.totalScans || 0) + 1,
+                lastScanned: 'Just now',
+              };
+            }
+            return t;
+          });
+          return { ...prev, [targetRestId]: updated };
+        });
+
+        setTableSessions((prev) => {
+          const list = prev[targetRestId] || [];
+          const existing = list.find(
+            (s) => s.tableNumber === tableNumber && (s.status === 'active' || s.status === 'bill_requested')
+          );
+          if (existing) return prev;
+          const newSess: TableSession = {
+            id: `sess_${targetRestId}_t${tableNumber}_${Date.now()}`,
+            restaurantId: targetRestId,
+            tableNumber,
+            hostName: 'Table Guest',
+            hostPhone: '',
+            members: [],
+            geofenceVerified: true,
+            geofenceOverridden: false,
+            status: 'active',
+            createdAt: new Date().toISOString(),
+          };
+          return { ...prev, [targetRestId]: [newSess, ...list] };
+        });
+      }
+
+      if (type === 'SESSION_CREATED' && tableNumber) {
+        const targetRestId = restaurantId || activeRestaurantId;
+        setTablesMap((prev) => {
+          const list = prev[targetRestId] || [];
+          const updated = list.map((t) =>
+            t.tableNumber === tableNumber ? { ...t, status: 'occupied' as const, lastScanned: 'Just now' } : t
+          );
+          return { ...prev, [targetRestId]: updated };
+        });
+
+        setTableSessions((prev) => {
+          const list = prev[targetRestId] || [];
+          const hostName = payload?.hostName || 'Table Guest';
+          const hostPhone = payload?.hostPhone || '';
+          const members = payload?.members && payload.members.length > 0 ? payload.members : [{
+            id: `mem_${Date.now()}`,
+            name: hostName,
+            phone: hostPhone,
+            isHost: true,
+            joinedAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          }];
+
+          const existingIdx = list.findIndex(
+            (s) => s.tableNumber === tableNumber && s.status !== 'closed' && s.status !== 'discarded'
+          );
+
+          if (existingIdx >= 0) {
+            const copy = [...list];
+            copy[existingIdx] = {
+              ...copy[existingIdx],
+              hostName,
+              hostPhone,
+              members,
+              status: 'active',
+            };
+            return { ...prev, [targetRestId]: copy };
+          }
+
+          const newSess: TableSession = {
+            id: payload?.sessionId || `sess_${targetRestId}_t${tableNumber}_${Date.now()}`,
+            restaurantId: targetRestId,
+            tableNumber,
+            hostName,
+            hostPhone,
+            members,
+            geofenceVerified: true,
+            geofenceOverridden: false,
+            status: 'active',
+            createdAt: new Date().toISOString(),
+          };
+          return { ...prev, [targetRestId]: [newSess, ...list] };
+        });
+      }
+
+      if (type === 'MEMBER_JOINED' && tableNumber && payload?.member) {
+        const targetRestId = restaurantId || activeRestaurantId;
+        setTableSessions((prev) => {
+          const list = prev[targetRestId] || [];
+          return {
+            ...prev,
+            [targetRestId]: list.map((s) => {
+              if (s.tableNumber === tableNumber && s.status === 'active') {
+                if (s.members.some((m) => m.phone === payload.member.phone)) return s;
+                return { ...s, members: [...s.members, payload.member] };
+              }
+              return s;
+            }),
+          };
+        });
+      }
+
+      if (type === 'ORDER_PLACED' && payload?.order) {
+        setOrders((prev) => {
+          if (prev.some((o) => o.id === payload.order.id)) return prev;
+          return [payload.order, ...prev];
+        });
+      }
+
+      if (type === 'ORDER_CONFIRMED' && payload?.orderId) {
+        setOrders((prev) =>
+          prev.map((o) => (o.id === payload.orderId ? { ...o, status: 'preparing' as const, estimatedPrepMinutes: payload.prepMinutes } : o))
+        );
+      }
+
+      if (type === 'ORDER_DELIVERED' && payload?.orderId) {
+        setOrders((prev) =>
+          prev.map((o) => (o.id === payload.orderId ? { ...o, status: 'delivered' as const } : o))
+        );
+      }
+
+      if (type === 'CALL_CAPTAIN' && payload?.call) {
+        setCaptainCalls((prev) => {
+          if (prev.some((c) => c.id === payload.call.id)) return prev;
+          return [payload.call, ...prev];
+        });
+      }
+
+      if (type === 'RESOLVE_CALL' && payload?.callId) {
+        setCaptainCalls((prev) =>
+          prev.map((c) => (c.id === payload.callId ? { ...c, status: 'acknowledged' as const } : c))
+        );
+      }
+
+      if (type === 'BILL_REQUESTED' && tableNumber) {
+        const targetRestId = restaurantId || activeRestaurantId;
+        setTablesMap((prev) => ({
+          ...prev,
+          [targetRestId]: (prev[targetRestId] || []).map((t) =>
+            t.tableNumber === tableNumber ? { ...t, status: 'bill_requested' as const } : t
+          ),
+        }));
+        setTableSessions((prev) => ({
+          ...prev,
+          [targetRestId]: (prev[targetRestId] || []).map((s) =>
+            s.tableNumber === tableNumber && s.status === 'active' ? { ...s, status: 'bill_requested' as const } : s
+          ),
+        }));
+      }
+
+      if (type === 'CLEAR_TABLE' && tableNumber) {
+        const targetRestId = restaurantId || activeRestaurantId;
+        setTablesMap((prev) => ({
+          ...prev,
+          [targetRestId]: (prev[targetRestId] || []).map((t) =>
+            t.tableNumber === tableNumber ? { ...t, status: 'available' as const } : t
+          ),
+        }));
+        setTableSessions((prev) => ({
+          ...prev,
+          [targetRestId]: (prev[targetRestId] || []).map((s) =>
+            s.tableNumber === tableNumber && s.status !== 'closed' ? { ...s, status: 'closed' as const } : s
+          ),
+        }));
+        setCaptainCalls((prev) =>
+          prev.filter((c) => !(c.restaurantId === targetRestId && c.tableNumber === tableNumber))
+        );
+      }
+    });
+
+    return () => unsub();
+  }, [activeRestaurant?.id, activeRestaurant?.slug, activeRestaurantId]);
+
   // Active Bill Configuration
   const activeBillConfig: BillConfiguration = billConfigsMap[activeRestaurantId] || {
     restaurantId: activeRestaurantId,
@@ -755,14 +944,17 @@ export const TenantProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
     // Check if table already has an active session
     const existingSession = (tableSessions[activeRestaurantId] || []).find(
-      (s) => s.tableNumber === tableNumber && s.status === 'active'
+      (s) => s.tableNumber === tableNumber && (s.status === 'active' || s.status === 'bill_requested')
     );
 
+    const isPlaceholder = !existingSession || !existingSession.hostPhone || existingSession.hostName === 'Table Guest';
     let isHost = true;
-    if (existingSession) {
-      isHost = existingSession.hostPhone === phone;
-      // Add as joiner if not already a member
-      if (!existingSession.members.some((m) => m.phone === phone)) {
+    let finalMembers: SessionMember[] = [];
+    const sessionId = existingSession?.id || `sess_${Date.now()}`;
+
+    if (!isPlaceholder && existingSession) {
+      isHost = existingSession.hostPhone.replace(/\s+/g, '') === phone.replace(/\s+/g, '');
+      if (!existingSession.members.some((m) => m.phone.replace(/\s+/g, '') === phone.replace(/\s+/g, ''))) {
         const newMember: SessionMember = {
           id: `mem_${Date.now()}`,
           name,
@@ -770,45 +962,58 @@ export const TenantProvider: React.FC<{ children: ReactNode }> = ({ children }) 
           isHost: false,
           joinedAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         };
+        finalMembers = [...existingSession.members, newMember];
         setTableSessions((prev) => ({
           ...prev,
           [activeRestaurantId]: (prev[activeRestaurantId] || []).map((s) =>
-            s.id === existingSession.id ? { ...s, members: [...s.members, newMember] } : s
+            s.id === existingSession.id ? { ...s, members: finalMembers } : s
           ),
         }));
+      } else {
+        finalMembers = existingSession.members;
       }
     } else {
-      // Create new session with this user as host
-      const newSession: TableSession = {
-        id: `sess_${Date.now()}`,
-        restaurantId: activeRestaurantId,
-        tableNumber,
-        hostName: name,
-        hostPhone: phone,
-        members: [
-          {
-            id: `mem_${Date.now()}`,
-            name,
-            phone,
-            isHost: true,
-            joinedAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          },
-        ],
-        geofenceVerified: true,
-        geofenceOverridden: false,
-        status: 'active',
-        createdAt: new Date().toISOString(),
+      isHost = true;
+      const hostMember: SessionMember = {
+        id: `mem_${Date.now()}`,
+        name,
+        phone,
+        isHost: true,
+        joinedAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       };
-      setTableSessions((prev) => ({
-        ...prev,
-        [activeRestaurantId]: [newSession, ...(prev[activeRestaurantId] || [])],
-      }));
+      finalMembers = [hostMember];
 
-      // Mark table occupied
+      if (existingSession) {
+        setTableSessions((prev) => ({
+          ...prev,
+          [activeRestaurantId]: (prev[activeRestaurantId] || []).map((s) =>
+            s.id === existingSession.id ? { ...s, hostName: name, hostPhone: phone, members: finalMembers, status: 'active' } : s
+          ),
+        }));
+      } else {
+        const newSession: TableSession = {
+          id: sessionId,
+          restaurantId: activeRestaurantId,
+          tableNumber,
+          hostName: name,
+          hostPhone: phone,
+          members: finalMembers,
+          geofenceVerified: true,
+          geofenceOverridden: false,
+          status: 'active',
+          createdAt: new Date().toISOString(),
+        };
+        setTableSessions((prev) => ({
+          ...prev,
+          [activeRestaurantId]: [newSession, ...(prev[activeRestaurantId] || [])],
+        }));
+      }
+
+      // Mark physical table as occupied
       setTablesMap((prev) => ({
         ...prev,
         [activeRestaurantId]: (prev[activeRestaurantId] || []).map((t) =>
-          t.tableNumber === tableNumber ? { ...t, status: 'occupied', totalScans: t.totalScans + 1, lastScanned: 'Just now' } : t
+          t.tableNumber === tableNumber ? { ...t, status: 'occupied', totalScans: (t.totalScans || 0) + 1, lastScanned: 'Just now' } : t
         ),
       }));
     }
@@ -819,6 +1024,17 @@ export const TenantProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       isHost,
       tableNumber,
     });
+
+    // Real-Time Broadcast for cross-device mobile-to-laptop synchronization
+    if (activeRestaurant?.slug) {
+      realtimeHub.publish(activeRestaurant.slug, 'SESSION_CREATED', activeRestaurantId, {
+        hostName: isHost ? name : (existingSession?.hostName || name),
+        hostPhone: isHost ? phone : (existingSession?.hostPhone || phone),
+        members: finalMembers,
+        sessionId,
+        status: 'active',
+      }, tableNumber);
+    }
 
     return { isReturning, isHost };
   };
@@ -911,6 +1127,11 @@ export const TenantProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     };
 
     setCaptainCalls((prev) => [newCall, ...prev]);
+
+    if (activeRestaurant?.slug) {
+      realtimeHub.publish(activeRestaurant.slug, 'CALL_CAPTAIN', activeRestaurantId, { call: newCall }, tableNumber);
+    }
+
     return { success: true, message: 'All captains are busy, someone will attend you shortly.' };
   };
 
@@ -948,6 +1169,10 @@ export const TenantProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     };
 
     setOrders((prev) => [newOrder, ...prev]);
+
+    if (activeRestaurant?.slug) {
+      realtimeHub.publish(activeRestaurant.slug, 'ORDER_PLACED', activeRestaurantId, { order: newOrder }, tableNumber);
+    }
   };
 
   const captainAddOrder = (
@@ -1036,6 +1261,10 @@ export const TenantProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         s.tableNumber === tableNumber && s.status === 'active' ? { ...s, status: 'bill_requested' } : s
       ),
     }));
+
+    if (activeRestaurant?.slug) {
+      realtimeHub.publish(activeRestaurant.slug, 'BILL_REQUESTED', activeRestaurantId, {}, tableNumber);
+    }
   };
 
   const closeTableTab = (tableNumber: number, paymentMethod: 'cash' | 'online') => {
@@ -1063,9 +1292,12 @@ export const TenantProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     setTableSessions((prev) => ({
       ...prev,
       [activeRestaurantId]: (prev[activeRestaurantId] || []).map((s) =>
-        s.tableNumber === tableNumber && s.status === 'paid_pending_reset' ? { ...s, status: 'closed' } : s
+        s.tableNumber === tableNumber && s.status !== 'closed' ? { ...s, status: 'closed' } : s
       ),
     }));
+    if (activeRestaurant?.slug) {
+      realtimeHub.publish(activeRestaurant.slug, 'CLEAR_TABLE', activeRestaurantId, {}, tableNumber);
+    }
   };
 
   const forceCloseSession = (tableNumber: number) => {
@@ -1077,14 +1309,14 @@ export const TenantProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     const todayDate = now.toISOString().split('T')[0];
 
-    // 1. Update Table Record: mark table as occupied if available, increment scan count
+    // 1. Update Table Record: mark table as occupied, increment scan count
     setTablesMap((prev) => {
       const list = prev[restaurantId] || [];
       const updated = list.map((t) => {
         if (t.tableNumber === tableNumber) {
           return {
             ...t,
-            status: t.status === 'available' ? 'occupied' : t.status,
+            status: 'occupied' as const,
             totalScans: (t.totalScans || 0) + 1,
             lastScanned: `Today, ${timeStr}`,
           };
@@ -1114,6 +1346,15 @@ export const TenantProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       };
       return { ...prev, [restaurantId]: [newSession, ...list] };
     });
+
+    // 3. Real-Time Broadcast across network to Captain View
+    const targetRest = restaurants.find((r) => r.id === restaurantId) || activeRestaurant;
+    if (targetRest?.slug) {
+      realtimeHub.publish(targetRest.slug, 'TABLE_SCAN', restaurantId, {
+        tableNumber,
+        scannedAt: timeStr,
+      }, tableNumber);
+    }
 
     // 3. Update scan count in TableDayHistory
     setTableHistoryMap((prev) => {
@@ -1309,6 +1550,14 @@ export const TenantProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         t.tableNumber === tableNumber ? { ...t, status: 'available' } : t
       ),
     }));
+
+    // 7. Real-Time Broadcast across network
+    if (activeRestaurant?.slug) {
+      realtimeHub.publish(activeRestaurant.slug, 'CLEAR_TABLE', activeRestaurantId, {
+        captainId,
+        captainName,
+      }, tableNumber);
+    }
 
     return { success: true, message: `Table ${tableNumber} has been successfully cleared and reset to available.` };
   };

@@ -359,7 +359,7 @@ export const CaptainLayout: React.FC = () => {
                   <div className="flex items-center justify-between">
                     <span
                       className={`text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider ${
-                        t.status === 'occupied'
+                        t.status === 'occupied' || (session && t.status !== 'bill_requested' && t.status !== 'paid_pending_reset')
                           ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
                           : t.status === 'bill_requested'
                           ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30 animate-pulse'
@@ -368,7 +368,7 @@ export const CaptainLayout: React.FC = () => {
                           : 'bg-slate-800 text-slate-400'
                       }`}
                     >
-                      {t.status.replace(/_/g, ' ')}
+                      {t.status === 'available' && session ? 'occupied' : t.status.replace(/_/g, ' ')}
                     </span>
                   </div>
                 </button>
@@ -388,7 +388,7 @@ export const CaptainLayout: React.FC = () => {
                     <h2 className="text-xl font-bold text-white">Table {selectedTableNumber}</h2>
                     <span
                       className={`text-[10px] font-bold px-2 py-0.5 rounded-full capitalize ${
-                        selectedTableRecord?.status === 'occupied'
+                        selectedTableRecord?.status === 'occupied' || (selectedSession && selectedTableRecord?.status !== 'bill_requested' && selectedTableRecord?.status !== 'paid_pending_reset')
                           ? 'bg-emerald-500/20 text-emerald-400'
                           : selectedTableRecord?.status === 'bill_requested'
                           ? 'bg-rose-500/20 text-rose-400'
@@ -397,7 +397,7 @@ export const CaptainLayout: React.FC = () => {
                           : 'bg-slate-800 text-slate-400'
                       }`}
                     >
-                      {selectedTableRecord?.status.replace(/_/g, ' ')}
+                      {selectedTableRecord?.status === 'available' && selectedSession ? 'occupied' : (selectedTableRecord?.status || 'available').replace(/_/g, ' ')}
                     </span>
                   </div>
                   {selectedSession ? (
