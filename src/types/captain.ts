@@ -56,6 +56,7 @@ export interface OrderItemEntry {
 
 export interface CaptainOrder {
   id: string;
+  restaurantId?: string;
   tabId: string;
   tableNumber: number;
   orderedByName: string;
