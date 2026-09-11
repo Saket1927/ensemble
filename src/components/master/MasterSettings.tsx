@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { authService, hashPassword } from '../../services/auth/authService';
 import { Shield, Key, User, Lock, CheckCircle2, AlertCircle, Eye, EyeOff, Save } from 'lucide-react';
 
 export const MasterSettings: React.FC = () => {
@@ -44,7 +45,6 @@ export const MasterSettings: React.FC = () => {
 
     setLoginIdLoading(true);
     try {
-      const { authService, hashPassword } = await import('../../services/auth/authService');
       const accounts = authService.getStaffAccounts();
       const masterAccount = accounts.find((a) => a.role === 'master_admin');
 
@@ -116,7 +116,6 @@ export const MasterSettings: React.FC = () => {
 
     setPasswordLoading(true);
     try {
-      const { authService, hashPassword } = await import('../../services/auth/authService');
       const accounts = authService.getStaffAccounts();
       const masterAccount = accounts.find((a) => a.role === 'master_admin');
 
