@@ -15,7 +15,9 @@ import {
   ExternalLink,
   ChevronRight,
   Sparkles,
+  LogOut,
 } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
 import { MasterOverview } from './MasterOverview';
 import { RestaurantsList } from './RestaurantsList';
 import { OnboardWizard } from './OnboardWizard';
@@ -37,7 +39,8 @@ export type MasterTab =
   | 'settings';
 
 export const MasterLayout: React.FC = () => {
-  const { restaurants, activeRestaurant, setActiveRestaurantSlug, setRole } = useTenant();
+  const { user, logout } = useAuth();
+  const { restaurants, activeRestaurant, setActiveRestaurantSlug } = useTenant();
   const [activeTab, setActiveTab] = useState<MasterTab>('overview');
   const [isOnboardOpen, setIsOnboardOpen] = useState<boolean>(false);
 
@@ -119,15 +122,24 @@ export const MasterLayout: React.FC = () => {
           })}
         </nav>
 
-        {/* Master User & Version */}
-        <div className="p-4 border-t border-slate-800 bg-slate-950/80 text-xs text-slate-400">
-          <div className="flex items-center justify-between">
-            <span className="text-slate-300 font-semibold">Superadmin Account</span>
-            <span className="w-2 h-2 rounded-full bg-emerald-400" />
+        {/* Master User & Logout */}
+        <div className="p-4 border-t border-slate-800 bg-slate-950/80 text-xs text-slate-400 flex items-center justify-between">
+          <div>
+            <div className="flex items-center space-x-1.5 text-white font-semibold">
+              <span>{user?.name || 'Platform Admin'}</span>
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+            </div>
+            <div className="text-[10px] text-emerald-400 font-mono mt-0.5">
+              {user?.email || 'admin@ensemble.com'}
+            </div>
           </div>
-          <div className="text-[10px] text-slate-400 font-mono mt-0.5">
-            admin@ensemble.com
-          </div>
+          <button
+            onClick={() => logout('/master/login')}
+            className="p-1.5 text-slate-400 hover:text-rose-400 hover:bg-slate-900 rounded-lg transition"
+            title="Sign Out"
+          >
+            <LogOut className="w-4 h-4" />
+          </button>
         </div>
       </aside>
 
@@ -138,10 +150,10 @@ export const MasterLayout: React.FC = () => {
           <div>
             <div className="flex items-center space-x-2">
               <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
-                Tenant Isolation Active
+                Multi-Tenant Architecture
               </span>
               <span className="text-xs text-slate-400">
-                128 Total Tenants Registered
+                {restaurants.length} Registered Tenants
               </span>
             </div>
             <h1 className="text-xl font-bold text-white mt-1 capitalize">
@@ -150,9 +162,9 @@ export const MasterLayout: React.FC = () => {
           </div>
 
           <div className="flex items-center space-x-3">
-            {/* Direct Restaurant Quick Jumper */}
+            {/* Direct Restaurant Quick Link */}
             <div className="flex items-center space-x-2 bg-slate-900 px-3 py-1.5 rounded-xl border border-slate-700 text-xs">
-              <span className="text-slate-400">Quick Preview:</span>
+              <span className="text-slate-400">Tenant:</span>
               <select
                 value={activeRestaurant.slug}
                 onChange={(e) => setActiveRestaurantSlug(e.target.value)}
@@ -165,9 +177,9 @@ export const MasterLayout: React.FC = () => {
                 ))}
               </select>
               <button
-                onClick={() => setRole('customer')}
+                onClick={() => window.open(`/${activeRestaurant.slug}/t/1`, '_blank')}
                 className="ml-1 p-1 hover:text-emerald-400 transition"
-                title="Open Guest View"
+                title="Open Public Customer Site"
               >
                 <ExternalLink className="w-3.5 h-3.5" />
               </button>
@@ -179,6 +191,15 @@ export const MasterLayout: React.FC = () => {
             >
               <Plus className="w-3.5 h-3.5" />
               <span>New Tenant</span>
+            </button>
+
+            <button
+              onClick={() => logout('/master/login')}
+              className="px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-rose-950/40 border border-slate-700 hover:border-rose-800 text-slate-300 hover:text-rose-400 text-xs font-semibold flex items-center space-x-1.5 transition"
+              title="Sign Out of Master Portal"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              <span>Sign Out</span>
             </button>
           </div>
         </header>

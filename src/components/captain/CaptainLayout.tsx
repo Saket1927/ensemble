@@ -22,11 +22,15 @@ import {
   Utensils,
   Eye,
   X,
+  LogOut,
+  User,
 } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
 import { TableRecord } from '../../types/tenant';
 import { CaptainOrder, OrderItemEntry } from '../../types/captain';
 
 export const CaptainLayout: React.FC = () => {
+  const { user, logout } = useAuth();
   const {
     activeRestaurant,
     activeTables,
@@ -46,7 +50,21 @@ export const CaptainLayout: React.FC = () => {
     activeMenuItems,
     unifiedCoupons,
     redeemCoupon,
+    setActiveRestaurantSlug,
+    restaurants,
   } = useTenant();
+
+  // Enforce Captain restaurant isolation
+  useEffect(() => {
+    if (user?.restaurantSlug && user.restaurantSlug !== activeRestaurant.slug) {
+      setActiveRestaurantSlug(user.restaurantSlug);
+    } else if (user?.restaurantId && user.restaurantId !== activeRestaurant.id) {
+      const match = restaurants.find((r) => r.id === user.restaurantId);
+      if (match) {
+        setActiveRestaurantSlug(match.slug);
+      }
+    }
+  }, [user, activeRestaurant, restaurants, setActiveRestaurantSlug]);
 
   const [selectedTableNumber, setSelectedTableNumber] = useState<number | null>(12);
   const [isOfflineSimulated, setIsOfflineSimulated] = useState(false);
@@ -164,6 +182,12 @@ export const CaptainLayout: React.FC = () => {
           </div>
 
           <div className="flex items-center space-x-2">
+            {/* Captain Profile Badge */}
+            <div className="hidden sm:flex items-center space-x-1.5 px-2.5 py-1 bg-slate-800 rounded-lg border border-slate-700 text-xs text-slate-300">
+              <User className="w-3.5 h-3.5 text-amber-400" />
+              <span className="font-semibold text-white">{user?.name || 'Captain'}</span>
+            </div>
+
             {/* Coupon Scanner CTA */}
             <button
               onClick={() => {
@@ -187,6 +211,16 @@ export const CaptainLayout: React.FC = () => {
               title="Toggle network connectivity simulation"
             >
               {isOfflineSimulated ? <WifiOff className="w-4 h-4" /> : <Wifi className="w-4 h-4" />}
+            </button>
+
+            {/* Captain Sign Out */}
+            <button
+              onClick={() => logout('/captain/login')}
+              className="bg-rose-950/40 hover:bg-rose-900/60 border border-rose-800/40 text-rose-300 px-2.5 py-1.5 rounded-lg text-xs font-semibold flex items-center space-x-1 transition-colors"
+              title="Sign Out of Captain Terminal"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Sign Out</span>
             </button>
           </div>
         </div>
