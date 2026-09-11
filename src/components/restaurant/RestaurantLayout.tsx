@@ -32,6 +32,9 @@ import { CampaignsTab } from './CampaignsTab';
 import { SettingsTab } from './SettingsTab';
 import { StaffTab } from './StaffTab';
 import { LockedFeatureBanner } from './LockedFeatureBanner';
+import { TableHistoryView } from './TableHistoryView';
+import { BillSettingsTab } from './BillSettingsTab';
+import { FileText, Clock } from 'lucide-react';
 
 export type RestaurantTab =
   | 'overview'
@@ -44,6 +47,8 @@ export type RestaurantTab =
   | 'social'
   | 'menu'
   | 'tables'
+  | 'history'
+  | 'bills'
   | 'campaigns'
   | 'settings';
 
@@ -95,6 +100,8 @@ export const RestaurantLayout: React.FC = () => {
     { id: 'social', label: 'Social Posts', icon: Share2, badge: pendingSocialCount || undefined, alert: pendingSocialCount > 0 },
     { id: 'menu', label: 'Menu', icon: BookOpen },
     { id: 'tables', label: 'Tables & QR', icon: QrCode },
+    { id: 'history', label: 'Table History', icon: Clock },
+    { id: 'bills', label: 'Bill Format & Charges', icon: FileText },
     { id: 'campaigns', label: 'Campaigns', icon: Megaphone },
     { id: 'settings', label: 'Settings & Branding', icon: Settings },
   ];
@@ -306,6 +313,8 @@ export const RestaurantLayout: React.FC = () => {
 
           {activeTab === 'menu' && <MenuManagementTab />}
           {activeTab === 'tables' && <TablesQrTab />}
+          {activeTab === 'history' && <TableHistoryView />}
+          {activeTab === 'bills' && <BillSettingsTab />}
           {activeTab === 'campaigns' && <CampaignsTab />}
           {activeTab === 'settings' && <SettingsTab />}
         </main>

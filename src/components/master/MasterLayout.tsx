@@ -28,10 +28,13 @@ import { GlobalCustomersDirectory } from './GlobalCustomersDirectory';
 import { BillAuditQueue } from './BillAuditQueue';
 import { ModularPlanBuilder } from './ModularPlanBuilder';
 import { MasterSettings } from './MasterSettings';
+import { MasterCredentialsDirectory } from './MasterCredentialsDirectory';
+import { Key } from 'lucide-react';
 
 export type MasterTab =
   | 'overview'
   | 'restaurants'
+  | 'credentials'
   | 'customers'
   | 'audits'
   | 'plans'
@@ -48,6 +51,7 @@ export const MasterLayout: React.FC = () => {
   const navItems = [
     { id: 'overview', label: 'Platform Overview', icon: LayoutDashboard },
     { id: 'restaurants', label: 'Restaurants', icon: UtensilsCrossed, badge: restaurants.length },
+    { id: 'credentials', label: 'Access & Credentials', icon: Key },
     { id: 'customers', label: 'Global Diners CRM', icon: Users },
     { id: 'audits', label: 'Bill Audit Queue', icon: CreditCard },
     { id: 'plans', label: 'Modular Plans', icon: Layers },
@@ -216,6 +220,7 @@ export const MasterLayout: React.FC = () => {
           {activeTab === 'restaurants' && (
             <RestaurantsList onOpenOnboard={() => setIsOnboardOpen(true)} />
           )}
+          {activeTab === 'credentials' && <MasterCredentialsDirectory />}
           {activeTab === 'customers' && <GlobalCustomersDirectory />}
           {activeTab === 'audits' && <BillAuditQueue />}
           {activeTab === 'plans' && <ModularPlanBuilder />}

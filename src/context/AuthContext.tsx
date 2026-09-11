@@ -24,8 +24,10 @@ interface AuthContextType {
     restaurantSlug?: string;
     phone?: string;
     assignedTables?: number[];
+    status?: 'active' | 'disabled';
   }) => Promise<{ success: boolean; account?: StaffAccount; error?: string }>;
   getStaffForRestaurant: (restaurantId: string) => StaffAccount[];
+  getAllStaffAccounts: () => StaffAccount[];
   toggleStaffStatus: (id: string, newStatus: 'active' | 'disabled') => boolean;
   resetStaffPassword: (id: string, newPassword: string) => Promise<boolean>;
   updateStaffAccount: (id: string, updates: Partial<StaffAccount>) => boolean;
@@ -96,6 +98,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return authService.getStaffForRestaurant(restaurantId);
   };
 
+  const getAllStaffAccounts = () => {
+    return authService.getAllStaffAccounts();
+  };
+
   const toggleStaffStatus = (id: string, newStatus: 'active' | 'disabled') => {
     const ok = authService.toggleStaffStatus(id, newStatus);
     if (ok) setVersion((v) => v + 1);
@@ -128,6 +134,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         logout,
         createStaffAccount,
         getStaffForRestaurant,
+        getAllStaffAccounts,
         toggleStaffStatus,
         resetStaffPassword,
         updateStaffAccount,

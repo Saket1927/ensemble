@@ -8,7 +8,51 @@ import { MasterLayout } from '../components/master/MasterLayout';
 import { RestaurantLayout } from '../components/restaurant/RestaurantLayout';
 import { CaptainLayout } from '../components/captain/CaptainLayout';
 import { CustomerLayout } from '../components/customer/CustomerLayout';
-import { Shield, UtensilsCrossed, Bell, ExternalLink, ArrowRight, AlertCircle } from 'lucide-react';
+import { Shield, UtensilsCrossed, Bell, ExternalLink, ArrowRight, AlertCircle, QrCode } from 'lucide-react';
+import { Restaurant } from '../types/tenant';
+
+const CustomerTableRoute: React.FC<{
+  restaurant: Restaurant;
+  tableNumber: number;
+}> = ({ restaurant, tableNumber }) => {
+  const { setActiveRestaurantSlug, setActiveTable, activeRestaurantSlug, recordTableScan } = useTenant();
+
+  useEffect(() => {
+    if (activeRestaurantSlug !== restaurant.slug) {
+      setActiveRestaurantSlug(restaurant.slug);
+    }
+    setActiveTable(tableNumber);
+    recordTableScan(restaurant.id, tableNumber);
+  }, [restaurant.id, restaurant.slug, tableNumber]);
+
+  return (
+    <div className="min-h-screen bg-slate-950 flex justify-center">
+      <div className="w-full max-w-md min-h-screen bg-[#fbf9f5] shadow-2xl flex flex-col relative">
+        <CustomerLayout />
+      </div>
+    </div>
+  );
+};
+
+const CustomerGeneralRoute: React.FC<{
+  restaurant: Restaurant;
+}> = ({ restaurant }) => {
+  const { setActiveRestaurantSlug, activeRestaurantSlug } = useTenant();
+
+  useEffect(() => {
+    if (activeRestaurantSlug !== restaurant.slug) {
+      setActiveRestaurantSlug(restaurant.slug);
+    }
+  }, [restaurant.slug]);
+
+  return (
+    <div className="min-h-screen bg-slate-950 flex justify-center">
+      <div className="w-full max-w-md min-h-screen bg-[#fbf9f5] shadow-2xl flex flex-col relative">
+        <CustomerLayout />
+      </div>
+    </div>
+  );
+};
 
 export const AppRouter: React.FC = () => {
   const { user, isLoading } = useAuth();
@@ -300,33 +344,11 @@ export const AppRouter: React.FC = () => {
         );
       }
 
-      // Valid table: sync restaurant and table
-      if (activeRestaurantSlug !== matchedRestaurant.slug) {
-        setActiveRestaurantSlug(matchedRestaurant.slug);
-      }
-      setActiveTable(tableNum);
-
-      return (
-        <div className="min-h-screen bg-slate-950 flex justify-center">
-          <div className="w-full max-w-md min-h-screen bg-[#fbf9f5] shadow-2xl flex flex-col relative">
-            <CustomerLayout />
-          </div>
-        </div>
-      );
+      return <CustomerTableRoute restaurant={matchedRestaurant} tableNumber={tableNum} />;
     }
 
     // 7D. GENERAL CUSTOMER EXPERIENCE (/:restaurantSlug)
-    if (activeRestaurantSlug !== matchedRestaurant.slug) {
-      setActiveRestaurantSlug(matchedRestaurant.slug);
-    }
-
-    return (
-      <div className="min-h-screen bg-slate-950 flex justify-center">
-        <div className="w-full max-w-md min-h-screen bg-[#fbf9f5] shadow-2xl flex flex-col relative">
-          <CustomerLayout />
-        </div>
-      </div>
-    );
+    return <CustomerGeneralRoute restaurant={matchedRestaurant} />;
   }
 
   // 8. ROOT (/) LANDING & PORTAL HUB
@@ -458,17 +480,17 @@ export const AppRouter: React.FC = () => {
             className="p-5 rounded-2xl bg-slate-900/90 border border-slate-800 hover:border-teal-500/50 hover:bg-slate-900 transition-all cursor-pointer group shadow-xl"
           >
             <div className="w-10 h-10 rounded-xl bg-teal-500/20 text-teal-400 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-              <ExternalLink className="w-5 h-5" />
+              <QrCode className="w-5 h-5" />
             </div>
             <div className="text-[10px] font-mono uppercase tracking-wider text-teal-400">Layer 4</div>
             <h3 className="font-bold text-white text-sm mt-0.5 group-hover:text-teal-400 transition">
-              Customer Experience
+              Diner Web Experience
             </h3>
             <p className="text-[11px] text-slate-400 mt-1.5 leading-relaxed">
-              Public QR-driven dining web app. Heritage branding, food photography, multi-person open tabs, spin & win, and call captain.
+              QR-activated guest interface. Zero-install menu ordering, blind open tab, category grouping, and verified Instagram rewards.
             </p>
             <div className="mt-4 text-xs font-semibold text-teal-400 flex items-center space-x-1">
-              <span>Open Heritage Table 1</span>
+              <span>View Table 1 Demo</span>
               <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
             </div>
           </div>

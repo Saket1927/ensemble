@@ -281,3 +281,134 @@ export interface MasterGlobalCustomer {
   totalRewardsRedeemed: number;
   lastSeenAt: string;
 }
+
+// Table History & Analytics (Sections 14-17)
+export interface TableSessionLog {
+  id: string;
+  sessionId: string;
+  restaurantId: string;
+  tableNumber: number;
+  date: string; // YYYY-MM-DD
+  displayDate: string;
+  startTime: string;
+  endTime?: string;
+  hostName: string;
+  hostPhone: string;
+  guestCount: number;
+  ordersCount: number;
+  totalSpend: number;
+  status: 'active' | 'completed' | 'cleared';
+  paymentMethod?: 'cash' | 'online' | 'none';
+  dishesOrdered: { name: string; quantity: number; price: number; category?: string }[];
+  captainCallsCount: number;
+  billRequested: boolean;
+  reviewed: boolean;
+  spunWheel: boolean;
+  clearedByCaptain?: string;
+}
+
+export interface TableDayHistory {
+  date: string; // YYYY-MM-DD
+  displayDate: string; // e.g. "12 Sep 2026"
+  tableNumber: number;
+  restaurantId: string;
+  qrScans: number;
+  uniqueVisitors: number;
+  totalPeople: number;
+  visits: number;
+  newCustomers: number;
+  returningCustomers: number;
+  orders: number;
+  revenue: number;
+  averageSpend: number;
+  reviews: number;
+  spins: number;
+  couponsRedeemed: number;
+  discountGiven: number;
+  captainCalls: number;
+  billRequests: number;
+  peakTime?: string;
+  sessions: TableSessionLog[];
+}
+
+// Clear Table Audit Log (Section 19)
+export interface ClearTableAuditLog {
+  id: string;
+  restaurantId: string;
+  tableNumber: number;
+  captainId: string;
+  captainName: string;
+  timestamp: string;
+  reason: 'manual_clear';
+  activeSessionId?: string;
+}
+
+// Restaurant Bill Configuration & Immutability (Sections 28-33)
+export interface CustomCharge {
+  id: string;
+  name: string;
+  type: 'percentage' | 'fixed';
+  value: number;
+  active: boolean;
+  order: number;
+}
+
+export interface BillConfiguration {
+  restaurantId: string;
+  restaurantName: string;
+  logoUrl?: string;
+  address?: string;
+  phone?: string;
+  gstin?: string;
+  fssai?: string;
+  website?: string;
+  socialHandle?: string;
+  footerMessage?: string;
+  thankYouMessage?: string;
+  termsAndConditions?: string;
+  paymentInstructions?: string;
+  templateStyle: 'standard' | 'compact' | 'detailed';
+  charges: CustomCharge[];
+  // Display Toggles
+  showLogo: boolean;
+  showGstin: boolean;
+  showAddress: boolean;
+  showPhone: boolean;
+  showTableNumber: boolean;
+  showCustomerName: boolean;
+  showPaymentMethod: boolean;
+  showTaxBreakdown: boolean;
+  showDiscountBreakdown: boolean;
+  showFooterMessage: boolean;
+}
+
+export interface BillSnapshot {
+  id: string;
+  billNumber: string;
+  restaurantId: string;
+  restaurantName: string;
+  tableNumber: number;
+  customerName: string;
+  customerPhone?: string;
+  items: {
+    name: string;
+    quantity: number;
+    price: number;
+    amount: number;
+    category?: string;
+  }[];
+  subtotal: number;
+  appliedCharges: {
+    name: string;
+    type: 'percentage' | 'fixed';
+    rateOrAmount: number;
+    calculatedAmount: number;
+  }[];
+  discountAmount: number;
+  discountLabel?: string;
+  grandTotal: number;
+  paymentMethod?: 'cash' | 'online' | 'unpaid';
+  createdAt: string;
+  billConfigSnapshot: Partial<BillConfiguration>;
+}
+

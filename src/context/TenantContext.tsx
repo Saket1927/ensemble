@@ -15,6 +15,10 @@ import {
   TenantRole,
   CustomerViewMode,
   MasterGlobalCustomer,
+  TableSessionLog,
+  TableDayHistory,
+  ClearTableAuditLog,
+  BillConfiguration,
 } from '../types/tenant';
 import {
   StaffRole,
@@ -193,6 +197,150 @@ const SEED_UNIFIED_COUPONS: UnifiedCoupon[] = [
   },
 ];
 
+// Seed Table History
+const todayHistoryStr = new Date().toISOString().split('T')[0];
+
+const SEED_TABLE_HISTORY: Record<string, TableDayHistory[]> = {
+  rest_heritage: [
+    {
+      date: todayHistoryStr,
+      displayDate: 'Today',
+      tableNumber: 12,
+      restaurantId: 'rest_heritage',
+      qrScans: 8,
+      uniqueVisitors: 6,
+      totalPeople: 14,
+      visits: 3,
+      newCustomers: 2,
+      returningCustomers: 1,
+      orders: 5,
+      revenue: 4250,
+      averageSpend: 1416,
+      reviews: 2,
+      spins: 3,
+      couponsRedeemed: 1,
+      discountGiven: 250,
+      captainCalls: 2,
+      billRequests: 2,
+      peakTime: '1:30 PM - 2:30 PM',
+      sessions: [
+        {
+          id: 'sess_hist_1',
+          sessionId: 'sess_101',
+          restaurantId: 'rest_heritage',
+          tableNumber: 12,
+          date: todayHistoryStr,
+          displayDate: 'Today, 1:15 PM',
+          startTime: new Date(Date.now() - 4 * 3600000).toISOString(),
+          endTime: new Date(Date.now() - 2.5 * 3600000).toISOString(),
+          hostName: 'Rohit Kulkarni',
+          hostPhone: '+91 98201 99887',
+          guestCount: 4,
+          ordersCount: 3,
+          totalSpend: 3200,
+          status: 'cleared',
+          paymentMethod: 'online',
+          dishesOrdered: [
+            { name: 'Galouti Kebab Lucknowi', quantity: 2, price: 540, category: 'Starters' },
+            { name: 'Murg Dum Biryani Handi', quantity: 2, price: 590, category: 'Main Course' },
+            { name: 'Heritage Garlic Naan', quantity: 4, price: 95, category: 'Breads' },
+          ],
+          captainCallsCount: 1,
+          billRequested: true,
+          reviewed: true,
+          spunWheel: true,
+          clearedByCaptain: 'Captain Vikram',
+        },
+      ],
+    },
+    {
+      date: todayHistoryStr,
+      displayDate: 'Today',
+      tableNumber: 7,
+      restaurantId: 'rest_heritage',
+      qrScans: 4,
+      uniqueVisitors: 3,
+      totalPeople: 6,
+      visits: 2,
+      newCustomers: 1,
+      returningCustomers: 1,
+      orders: 3,
+      revenue: 2850,
+      averageSpend: 1425,
+      reviews: 1,
+      spins: 2,
+      couponsRedeemed: 0,
+      discountGiven: 0,
+      captainCalls: 0,
+      billRequests: 1,
+      peakTime: '12:45 PM - 1:45 PM',
+      sessions: [
+        {
+          id: 'sess_hist_2',
+          sessionId: 'sess_102',
+          restaurantId: 'rest_heritage',
+          tableNumber: 7,
+          date: todayHistoryStr,
+          displayDate: 'Today, 12:45 PM',
+          startTime: new Date(Date.now() - 6 * 3600000).toISOString(),
+          endTime: new Date(Date.now() - 5 * 3600000).toISOString(),
+          hostName: 'Vikram Joshi',
+          hostPhone: '+91 98200 77665',
+          guestCount: 2,
+          ordersCount: 2,
+          totalSpend: 1850,
+          status: 'cleared',
+          paymentMethod: 'cash',
+          dishesOrdered: [
+            { name: 'Dal Makhani Bukhara', quantity: 1, price: 420, category: 'Main Course' },
+            { name: 'Heritage Garlic Naan', quantity: 3, price: 95, category: 'Breads' },
+          ],
+          captainCallsCount: 0,
+          billRequested: true,
+          reviewed: true,
+          spunWheel: false,
+          clearedByCaptain: 'Captain Vikram',
+        },
+      ],
+    },
+  ],
+};
+
+// Default Bill Configurations
+const DEFAULT_BILL_CONFIGS: Record<string, BillConfiguration> = {
+  rest_heritage: {
+    restaurantId: 'rest_heritage',
+    restaurantName: 'Heritage Fine Dining',
+    logoUrl: 'https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=80&q=80',
+    address: 'Plot 42, Bandra Kurla Complex, Mumbai, MH 400051',
+    phone: '+91 22 2847 9000',
+    gstin: '27AABCH1234F1Z8',
+    fssai: '11521018000342',
+    website: 'https://heritagedining.in',
+    socialHandle: '@heritagemumbai',
+    footerMessage: 'Thank you for dining with us! Scan to review or earn rewards.',
+    thankYouMessage: 'We look forward to hosting you again soon.',
+    termsAndConditions: 'Discretionary service charge is voluntary and may be removed upon request.',
+    paymentInstructions: 'Scan QR at table or pay at counter.',
+    templateStyle: 'standard',
+    charges: [
+      { id: 'chg_gst', name: 'GST (CGST 2.5% + SGST 2.5%)', type: 'percentage', value: 5, active: true, order: 1 },
+      { id: 'chg_srv', name: 'Discretionary Service Charge', type: 'percentage', value: 5, active: true, order: 2 },
+      { id: 'chg_pkg', name: 'Packaging / Hygiene Fee', type: 'fixed', value: 20, active: false, order: 3 },
+    ],
+    showLogo: true,
+    showGstin: true,
+    showAddress: true,
+    showPhone: true,
+    showTableNumber: true,
+    showCustomerName: true,
+    showPaymentMethod: true,
+    showTaxBreakdown: true,
+    showDiscountBreakdown: true,
+    showFooterMessage: true,
+  },
+};
+
 interface CustomerSessionState {
   name: string;
   phone: string;
@@ -317,10 +465,19 @@ interface TenantContextType {
   createOffer: (offer: Omit<Offer, 'id' | 'usedCount'>) => void;
   toggleOfferActive: (id: string) => void;
 
-  // Table Management
+  // Table Management & History
   addTable: (tableNumber: number) => void;
   deleteTable: (tableNumber: number) => void;
   toggleTableActive: (tableNumber: number) => void;
+  recordTableScan: (restaurantId: string, tableNumber: number) => void;
+  clearTable: (tableNumber: number, captainId?: string, captainName?: string) => { success: boolean; message: string };
+  tableHistoryMap: Record<string, TableDayHistory[]>;
+  clearTableAudits: ClearTableAuditLog[];
+
+  // Bill Configurations
+  billConfigsMap: Record<string, BillConfiguration>;
+  activeBillConfig: BillConfiguration;
+  updateBillConfiguration: (config: BillConfiguration) => void;
 
   resetToDefaults: () => void;
 }
@@ -342,13 +499,16 @@ const STORAGE_KEYS = {
   TABLE_SESSIONS: 'ensemble_sessions_v3',
   CAPTAIN_CALLS: 'ensemble_captain_calls_v3',
   BILL_UPLOADS: 'ensemble_bill_uploads_v3',
+  TABLE_HISTORY: 'ensemble_table_history_v3',
+  BILL_CONFIGS: 'ensemble_bill_configs_v3',
+  CLEAR_TABLE_AUDITS: 'ensemble_clear_table_audits_v3',
 };
 
 export const TenantProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [role, setRole] = useState<TenantRole>('customer');
   const [staffRole, setStaffRole] = useState<StaffRole>('owner');
   const [activeRestaurantSlug, setActiveRestaurantSlug] = useState<string>('heritage');
-  const [activeTable, setActiveTable] = useState<number>(12);
+  const [activeTable, setActiveTable] = useState<number>(1);
   const [customerViewMode, setCustomerViewMode] = useState<CustomerViewMode>('mobile_frame');
   const [customerActiveTab, setCustomerActiveTab] = useState<'home' | 'menu' | 'reviews' | 'rewards' | 'social'>('home');
 
@@ -411,6 +571,15 @@ export const TenantProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   );
   const [unifiedCoupons, setUnifiedCoupons] = useState<UnifiedCoupon[]>(() =>
     loadState(STORAGE_KEYS.UNIFIED_COUPONS, SEED_UNIFIED_COUPONS)
+  );
+  const [tableHistoryMap, setTableHistoryMap] = useState<Record<string, TableDayHistory[]>>(() =>
+    loadState(STORAGE_KEYS.TABLE_HISTORY, SEED_TABLE_HISTORY)
+  );
+  const [billConfigsMap, setBillConfigsMap] = useState<Record<string, BillConfiguration>>(() =>
+    loadState(STORAGE_KEYS.BILL_CONFIGS, DEFAULT_BILL_CONFIGS)
+  );
+  const [clearTableAudits, setClearTableAudits] = useState<ClearTableAuditLog[]>(() =>
+    loadState(STORAGE_KEYS.CLEAR_TABLE_AUDITS, [])
   );
 
   // Legacy wallet sync
@@ -495,6 +664,15 @@ export const TenantProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEYS.BILL_UPLOADS, JSON.stringify(masterBillUploads));
   }, [masterBillUploads]);
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.TABLE_HISTORY, JSON.stringify(tableHistoryMap));
+  }, [tableHistoryMap]);
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.BILL_CONFIGS, JSON.stringify(billConfigsMap));
+  }, [billConfigsMap]);
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.CLEAR_TABLE_AUDITS, JSON.stringify(clearTableAudits));
+  }, [clearTableAudits]);
 
   // Resolve active restaurant
   const activeRestaurant =
@@ -510,6 +688,45 @@ export const TenantProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   const activeTables = tablesMap[activeRestaurantId] || [];
   const activeCampaigns = campaignsMap[activeRestaurantId] || [];
   const activeOrders = orders.filter((o) => o.restaurantId === activeRestaurantId);
+
+  // Active Bill Configuration
+  const activeBillConfig: BillConfiguration = billConfigsMap[activeRestaurantId] || {
+    restaurantId: activeRestaurantId,
+    restaurantName: activeRestaurant.name,
+    logoUrl: activeRestaurant.branding.logoUrl,
+    address: activeRestaurant.address || 'Mumbai, Maharashtra, India',
+    phone: activeRestaurant.phone || '+91 99999 00000',
+    gstin: '27AABCR8765Q1Z2',
+    fssai: '11521018000999',
+    website: `https://${activeRestaurant.slug}.ensemble.in`,
+    socialHandle: activeRestaurant.socials?.instagram || `@${activeRestaurant.slug}`,
+    footerMessage: 'Thank you for dining with us! Scan the QR to earn rewards or leave a review.',
+    thankYouMessage: 'We look forward to welcoming you back.',
+    termsAndConditions: 'Discretionary service charge is voluntary and may be removed upon request.',
+    templateStyle: 'standard',
+    charges: [
+      { id: 'chg_gst', name: 'GST (CGST 2.5% + SGST 2.5%)', type: 'percentage', value: 5, active: true, order: 1 },
+      { id: 'chg_srv', name: 'Discretionary Service Charge', type: 'percentage', value: 5, active: true, order: 2 },
+      { id: 'chg_pkg', name: 'Packaging / Hygiene Fee', type: 'fixed', value: 20, active: false, order: 3 },
+    ],
+    showLogo: true,
+    showGstin: true,
+    showAddress: true,
+    showPhone: true,
+    showTableNumber: true,
+    showCustomerName: true,
+    showPaymentMethod: true,
+    showTaxBreakdown: true,
+    showDiscountBreakdown: true,
+    showFooterMessage: true,
+  };
+
+  const updateBillConfiguration = (config: BillConfiguration) => {
+    setBillConfigsMap((prev) => ({
+      ...prev,
+      [config.restaurantId]: config,
+    }));
+  };
 
   // Active table session
   const currentTableSession =
@@ -855,6 +1072,247 @@ export const TenantProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     resetTable(tableNumber);
   };
 
+  const recordTableScan = (restaurantId: string, tableNumber: number) => {
+    const now = new Date();
+    const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const todayDate = now.toISOString().split('T')[0];
+
+    // 1. Update Table Record: mark table as occupied if available, increment scan count
+    setTablesMap((prev) => {
+      const list = prev[restaurantId] || [];
+      const updated = list.map((t) => {
+        if (t.tableNumber === tableNumber) {
+          return {
+            ...t,
+            status: t.status === 'available' ? 'occupied' : t.status,
+            totalScans: (t.totalScans || 0) + 1,
+            lastScanned: `Today, ${timeStr}`,
+          };
+        }
+        return t;
+      });
+      return { ...prev, [restaurantId]: updated };
+    });
+
+    // 2. Ensure an active session exists
+    setTableSessions((prev) => {
+      const list = prev[restaurantId] || [];
+      const existing = list.find((s) => s.tableNumber === tableNumber && (s.status === 'active' || s.status === 'bill_requested'));
+      if (existing) return prev;
+
+      const newSession: TableSession = {
+        id: `sess_${restaurantId}_t${tableNumber}_${Date.now()}`,
+        restaurantId,
+        tableNumber,
+        hostName: 'Table Guest',
+        hostPhone: '',
+        members: [],
+        geofenceVerified: true,
+        geofenceOverridden: false,
+        status: 'active',
+        createdAt: now.toISOString(),
+      };
+      return { ...prev, [restaurantId]: [newSession, ...list] };
+    });
+
+    // 3. Update scan count in TableDayHistory
+    setTableHistoryMap((prev) => {
+      const list = prev[restaurantId] || [];
+      const existingDayIndex = list.findIndex(
+        (d) => d.date === todayDate && d.tableNumber === tableNumber
+      );
+      if (existingDayIndex >= 0) {
+        const copy = [...list];
+        copy[existingDayIndex] = {
+          ...copy[existingDayIndex],
+          qrScans: copy[existingDayIndex].qrScans + 1,
+        };
+        return { ...prev, [restaurantId]: copy };
+      } else {
+        const newDay: TableDayHistory = {
+          date: todayDate,
+          displayDate: 'Today',
+          tableNumber,
+          restaurantId,
+          qrScans: 1,
+          uniqueVisitors: 1,
+          totalPeople: 1,
+          visits: 0,
+          newCustomers: 1,
+          returningCustomers: 0,
+          orders: 0,
+          revenue: 0,
+          averageSpend: 0,
+          reviews: 0,
+          spins: 0,
+          couponsRedeemed: 0,
+          discountGiven: 0,
+          captainCalls: 0,
+          billRequests: 0,
+          sessions: [],
+        };
+        return { ...prev, [restaurantId]: [newDay, ...list] };
+      }
+    });
+  };
+
+  const clearTable = (tableNumber: number, captainId: string = 'cpt_staff', captainName: string = 'Captain') => {
+    const now = new Date();
+    const timestamp = now.toISOString();
+    const todayDate = timestamp.split('T')[0];
+
+    // Find current session and orders for this table in active restaurant
+    const currentSess = (tableSessions[activeRestaurantId] || []).find(
+      (s) => s.tableNumber === tableNumber && s.status !== 'closed' && s.status !== 'discarded'
+    );
+    const tableOrders = orders.filter(
+      (o) => o.restaurantId === activeRestaurantId && o.tableNumber === tableNumber && o.status !== 'cancelled' && (o.status as string) !== 'archived'
+    );
+    const tableCalls = captainCalls.filter(
+      (c) => c.restaurantId === activeRestaurantId && c.tableNumber === tableNumber
+    );
+
+    // Compute financial totals
+    const grossAmount = tableOrders.reduce(
+      (sum, o) => sum + o.items.reduce((iSum, item) => iSum + item.price * item.quantity, 0),
+      0
+    );
+    const config = activeBillConfig;
+    const gstCharge = config.charges.find((c) => c.name.toLowerCase().includes('gst') && c.active)?.value || 5;
+    const serviceCharge = config.charges.find((c) => c.name.toLowerCase().includes('service') && c.active)?.value || 0;
+    const netAmount = Math.round(grossAmount * (1 + (gstCharge + serviceCharge) / 100));
+
+    const sessionStart = currentSess?.createdAt || timestamp;
+
+    // 1. Create audit log
+    const auditLog: ClearTableAuditLog = {
+      id: `audit_clr_${Date.now()}`,
+      restaurantId: activeRestaurantId,
+      tableNumber,
+      captainId: captainId || 'cpt_staff',
+      captainName: captainName || 'Captain',
+      timestamp,
+      reason: 'manual_clear',
+      activeSessionId: currentSess?.id,
+    };
+    setClearTableAudits((prev) => [auditLog, ...prev]);
+
+    // 2. Create historical TableSessionLog & update TableDayHistory if there were orders/session
+    if (tableOrders.length > 0 || currentSess) {
+      const sessionLog: TableSessionLog = {
+        id: `sess_log_${Date.now()}`,
+        sessionId: currentSess?.id || `sess_hist_${Date.now()}`,
+        tableNumber,
+        restaurantId: activeRestaurantId,
+        date: todayDate,
+        displayDate: `Today, ${now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`,
+        startTime: sessionStart,
+        endTime: timestamp,
+        hostName: currentSess?.hostName || 'Table Guest',
+        hostPhone: currentSess?.hostPhone || '',
+        guestCount: currentSess?.members?.length || 1,
+        ordersCount: tableOrders.length,
+        totalSpend: grossAmount,
+        status: 'cleared',
+        paymentMethod: 'none',
+        dishesOrdered: tableOrders.flatMap((o) =>
+          o.items.map((it) => ({
+            name: it.name,
+            quantity: it.quantity,
+            price: it.price,
+          }))
+        ),
+        captainCallsCount: tableCalls.length,
+        billRequested: true,
+        reviewed: false,
+        spunWheel: false,
+        clearedByCaptain: captainName || 'Captain',
+      };
+
+      setTableHistoryMap((prev) => {
+        const list = prev[activeRestaurantId] || [];
+        const existingDayIndex = list.findIndex(
+          (d) => d.date === todayDate && d.tableNumber === tableNumber
+        );
+
+        if (existingDayIndex >= 0) {
+          const day = list[existingDayIndex];
+          const updatedDay: TableDayHistory = {
+            ...day,
+            visits: day.visits + 1,
+            totalPeople: day.totalPeople + (currentSess?.members?.length || 1),
+            orders: day.orders + tableOrders.length,
+            revenue: day.revenue + grossAmount,
+            averageSpend: Math.round((day.revenue + grossAmount) / (day.visits + 1)),
+            captainCalls: day.captainCalls + tableCalls.length,
+            sessions: [sessionLog, ...day.sessions],
+          };
+          const copy = [...list];
+          copy[existingDayIndex] = updatedDay;
+          return { ...prev, [activeRestaurantId]: copy };
+        } else {
+          const newDay: TableDayHistory = {
+            date: todayDate,
+            displayDate: 'Today',
+            tableNumber,
+            restaurantId: activeRestaurantId,
+            qrScans: 1,
+            uniqueVisitors: 1,
+            totalPeople: currentSess?.members?.length || 1,
+            visits: 1,
+            newCustomers: 1,
+            returningCustomers: 0,
+            orders: tableOrders.length,
+            revenue: grossAmount,
+            averageSpend: grossAmount,
+            reviews: 0,
+            spins: 0,
+            couponsRedeemed: 0,
+            discountGiven: 0,
+            captainCalls: tableCalls.length,
+            billRequests: 1,
+            sessions: [sessionLog],
+          };
+          return { ...prev, [activeRestaurantId]: [newDay, ...list] };
+        }
+      });
+    }
+
+    // 3. Archive orders for this table so they don't leak into live active views
+    setOrders((prev) =>
+      prev.map((o) =>
+        o.restaurantId === activeRestaurantId && o.tableNumber === tableNumber && (o.status as string) !== 'archived'
+          ? { ...o, status: 'archived' as any }
+          : o
+      )
+    );
+
+    // 4. Close table sessions for this table
+    setTableSessions((prev) => ({
+      ...prev,
+      [activeRestaurantId]: (prev[activeRestaurantId] || []).map((s) =>
+        s.tableNumber === tableNumber && s.status !== 'closed'
+          ? { ...s, status: 'closed' }
+          : s
+      ),
+    }));
+
+    // 5. Clear pending calls for this table
+    setCaptainCalls((prev) =>
+      prev.filter((c) => !(c.restaurantId === activeRestaurantId && c.tableNumber === tableNumber && c.status === 'pending'))
+    );
+
+    // 6. Reset physical table status to 'available' (PHYSICAL TABLE IS NEVER DELETED!)
+    setTablesMap((prev) => ({
+      ...prev,
+      [activeRestaurantId]: (prev[activeRestaurantId] || []).map((t) =>
+        t.tableNumber === tableNumber ? { ...t, status: 'available' } : t
+      ),
+    }));
+
+    return { success: true, message: `Table ${tableNumber} has been successfully cleared and reset to available.` };
+  };
+
   // Section 13: 1-Active-Coupon Rule & Next-Visit Rewards Engine
   const addUnifiedCoupon = (
     couponData: Omit<UnifiedCoupon, 'id' | 'createdAt' | 'status'>
@@ -1108,6 +1566,40 @@ export const TenantProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     setReviewsMap((prev) => ({ ...prev, [id]: [] }));
     setSocialSubmissionsMap((prev) => ({ ...prev, [id]: [] }));
     setTableSessions((prev) => ({ ...prev, [id]: [] }));
+    setTableHistoryMap((prev) => ({ ...prev, [id]: [] }));
+    setBillConfigsMap((prev) => ({
+      ...prev,
+      [id]: {
+        restaurantId: id,
+        restaurantName: fullRest.name,
+        logoUrl: fullRest.branding.logoUrl,
+        address: fullRest.address,
+        phone: fullRest.phone,
+        gstin: '27AABCR8765Q1Z2',
+        fssai: '11521018000999',
+        website: `https://${fullRest.slug}.ensemble.in`,
+        socialHandle: fullRest.socials.instagram,
+        footerMessage: 'Thank you for dining with us! Scan to review or earn rewards.',
+        thankYouMessage: 'We look forward to hosting you again soon.',
+        termsAndConditions: 'Discretionary service charge is voluntary and may be removed upon request.',
+        templateStyle: 'standard',
+        charges: [
+          { id: 'chg_gst', name: 'GST (CGST 2.5% + SGST 2.5%)', type: 'percentage', value: 5, active: true, order: 1 },
+          { id: 'chg_srv', name: 'Discretionary Service Charge', type: 'percentage', value: 5, active: true, order: 2 },
+          { id: 'chg_pkg', name: 'Packaging / Hygiene Fee', type: 'fixed', value: 20, active: false, order: 3 },
+        ],
+        showLogo: true,
+        showGstin: true,
+        showAddress: true,
+        showPhone: true,
+        showTableNumber: true,
+        showCustomerName: true,
+        showPaymentMethod: true,
+        showTaxBreakdown: true,
+        showDiscountBreakdown: true,
+        showFooterMessage: true,
+      },
+    }));
 
     // Initialize clean balanced starter rewards summing to exactly 100% probability
     const starterRewards: RewardWheelItem[] = [
@@ -1395,6 +1887,9 @@ export const TenantProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     setCaptainCalls(SEED_CAPTAIN_CALLS);
     setMasterBillUploads(SEED_BILL_UPLOADS);
     setUnifiedCoupons(SEED_UNIFIED_COUPONS);
+    setTableHistoryMap(SEED_TABLE_HISTORY);
+    setBillConfigsMap(DEFAULT_BILL_CONFIGS);
+    setClearTableAudits([]);
     setCustomerWallet([]);
     setCanSpin(true);
     setUnlockedExtraSpins(0);
@@ -1502,6 +1997,14 @@ export const TenantProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         addTable,
         deleteTable,
         toggleTableActive,
+        recordTableScan,
+        clearTable,
+        tableHistoryMap,
+        clearTableAudits,
+
+        billConfigsMap,
+        activeBillConfig,
+        updateBillConfiguration,
 
         resetToDefaults,
       }}

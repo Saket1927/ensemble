@@ -124,21 +124,9 @@ export const RestaurantLogin: React.FC<{ onNavigate: (path: string) => void }> =
           </form>
         </div>
 
-        {/* Portal Switcher Footer */}
-        <div className="mt-6 text-center text-xs text-slate-500 flex justify-center items-center space-x-4">
-          <button
-            onClick={() => onNavigate('/master/login')}
-            className="hover:text-emerald-400 transition"
-          >
-            &larr; Master Admin Portal
-          </button>
-          <span>•</span>
-          <button
-            onClick={() => onNavigate('/captain/login')}
-            className="hover:text-amber-400 transition"
-          >
-            Captain Floor Terminal &rarr;
-          </button>
+        {/* Support Footer */}
+        <div className="mt-6 text-center text-xs text-slate-500">
+          <span>Need access assistance? Contact your restaurant system administrator.</span>
         </div>
       </div>
     </div>

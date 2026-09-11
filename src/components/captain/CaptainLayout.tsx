@@ -46,6 +46,7 @@ export const CaptainLayout: React.FC = () => {
     closeTableTab,
     resetTable,
     forceCloseSession,
+    clearTable,
     reassignSessionHost,
     activeMenuItems,
     unifiedCoupons,
@@ -84,6 +85,8 @@ export const CaptainLayout: React.FC = () => {
   const [showAddDishModal, setShowAddDishModal] = useState(false);
   const [showReassignModal, setShowReassignModal] = useState(false);
   const [showScannerModal, setShowScannerModal] = useState(false);
+  const [showClearConfirmModal, setShowClearConfirmModal] = useState(false);
+  const [clearNotification, setClearNotification] = useState<string | null>(null);
   const [scannedCodeInput, setScannedCodeInput] = useState('');
   const [scanResult, setScanResult] = useState<string | null>(null);
 
@@ -635,7 +638,15 @@ export const CaptainLayout: React.FC = () => {
                 </div>
               </div>
 
-              {/* Payment & Table Reset Actions (Section 8) */}
+              {/* Notification Banner */}
+              {clearNotification && (
+                <div className="bg-emerald-950/50 border border-emerald-500/40 text-emerald-300 p-2.5 rounded-xl text-xs flex items-center space-x-2">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <span>{clearNotification}</span>
+                </div>
+              )}
+
+              {/* Payment & Table Reset Actions (Section 8 & 22) */}
               <div className="space-y-2 pt-2 border-t border-slate-800">
                 {selectedTableRecord?.status === 'bill_requested' || selectedTableRecord?.status === 'occupied' ? (
                   <div className="grid grid-cols-2 gap-2">
@@ -662,14 +673,16 @@ export const CaptainLayout: React.FC = () => {
                     <RotateCcw className="w-4 h-4" />
                     <span>Reset Table (Sanitized & Ready)</span>
                   </button>
-                ) : (
-                  <button
-                    onClick={() => forceCloseSession(selectedTableNumber)}
-                    className="w-full bg-slate-800 hover:bg-slate-700 text-slate-300 py-2 rounded-xl text-xs font-semibold"
-                  >
-                    Force Reset / Clear Table
-                  </button>
-                )}
+                ) : null}
+
+                {/* Section 22: CLEAR TABLE Action Button */}
+                <button
+                  onClick={() => setShowClearConfirmModal(true)}
+                  className="w-full bg-rose-950/40 hover:bg-rose-900/60 border border-rose-800/50 text-rose-300 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center space-x-2 transition-all shadow-sm"
+                >
+                  <Trash2 className="w-4 h-4 text-rose-400" />
+                  <span>Clear Table (Hard Reset & Archive)</span>
+                </button>
               </div>
             </>
           ) : (
@@ -878,6 +891,57 @@ export const CaptainLayout: React.FC = () => {
                   </button>
                 ))}
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Clear Table Confirmation Modal (Section 22) */}
+      {showClearConfirmModal && selectedTableNumber && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-rose-500/40 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl">
+            <div className="flex items-center space-x-3 text-rose-400">
+              <div className="w-10 h-10 rounded-full bg-rose-950/60 border border-rose-800 flex items-center justify-center shrink-0">
+                <AlertTriangle className="w-5 h-5 text-rose-400" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-white">CLEAR TABLE #{selectedTableNumber}?</h3>
+                <p className="text-xs text-rose-300 font-medium">Session Reset & Audit Logging</p>
+              </div>
+            </div>
+
+            <div className="bg-rose-950/20 border border-rose-900/40 p-3.5 rounded-xl text-xs text-rose-200 leading-relaxed space-y-2">
+              <p className="font-semibold text-white">
+                Active session, orders, and open tab will be cleared.
+              </p>
+              <p className="text-slate-300">
+                Physical table & table history will be preserved. This table will immediately become Available for the next diners.
+              </p>
+            </div>
+
+            <div className="flex items-center space-x-3 pt-2">
+              <button
+                onClick={() => setShowClearConfirmModal(false)}
+                className="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold py-2.5 rounded-xl transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  const res = clearTable(
+                    selectedTableNumber,
+                    user?.id || 'cpt_staff',
+                    user?.name || user?.email || 'Captain'
+                  );
+                  setShowClearConfirmModal(false);
+                  setClearNotification(res.message);
+                  setTimeout(() => setClearNotification(null), 4000);
+                }}
+                className="flex-1 bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs py-2.5 rounded-xl shadow-lg transition-colors flex items-center justify-center space-x-1.5"
+              >
+                <Trash2 className="w-4 h-4" />
+                <span>Confirm Clear Table</span>
+              </button>
             </div>
           </div>
         </div>

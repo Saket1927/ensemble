@@ -379,6 +379,10 @@ class AuthService {
     return { success: true, account: newAccount };
   }
 
+  public getAllStaffAccounts(): StaffAccount[] {
+    return this.getStaffAccounts();
+  }
+
   public getStaffForRestaurant(restaurantId: string): StaffAccount[] {
     const accounts = this.getStaffAccounts();
     return accounts.filter((a) => a.restaurantId === restaurantId);

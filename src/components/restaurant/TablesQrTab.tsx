@@ -14,6 +14,7 @@ import {
   Globe,
 } from 'lucide-react';
 import { StandardQRCode } from '../common/StandardQRCode';
+import { TableHistoryView } from './TableHistoryView';
 import {
   getTableCanonicalUrl,
   buildPrintableStandeeSVG,
@@ -30,6 +31,7 @@ export const TablesQrTab: React.FC = () => {
     setActiveTable,
   } = useTenant();
 
+  const [subView, setSubView] = useState<'qr_standees' | 'table_history'>('qr_standees');
   const [selectedTableForQr, setSelectedTableForQr] = useState<number | null>(null);
   const [copiedUrl, setCopiedUrl] = useState<string | null>(null);
   const [successNotice, setSuccessNotice] = useState<string | null>(null);
@@ -162,18 +164,49 @@ export const TablesQrTab: React.FC = () => {
           </p>
         </div>
 
-        <div className="flex items-center space-x-2">
-          <button
-            onClick={handleBulkPrint}
-            className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-slate-900 text-white hover:bg-slate-800 flex items-center space-x-1.5 transition shadow-sm"
-          >
-            <Printer className="w-3.5 h-3.5" />
-            <span>Bulk Print All Standees ({activeTables.length})</span>
-          </button>
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Subview Toggle */}
+          <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200 text-xs font-semibold text-slate-600">
+            <button
+              onClick={() => setSubView('qr_standees')}
+              className={`px-3 py-1.5 rounded-lg transition ${
+                subView === 'qr_standees'
+                  ? 'bg-white text-slate-950 shadow-sm font-bold'
+                  : 'hover:text-slate-900'
+              }`}
+            >
+              QR Standees & Print
+            </button>
+            <button
+              onClick={() => setSubView('table_history')}
+              className={`px-3 py-1.5 rounded-lg transition ${
+                subView === 'table_history'
+                  ? 'bg-white text-slate-950 shadow-sm font-bold'
+                  : 'hover:text-slate-900'
+              }`}
+            >
+              Table History Analytics
+            </button>
+          </div>
+
+          {subView === 'qr_standees' && (
+            <button
+              onClick={handleBulkPrint}
+              className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-slate-900 text-white hover:bg-slate-800 flex items-center space-x-1.5 transition shadow-sm"
+            >
+              <Printer className="w-3.5 h-3.5" />
+              <span>Bulk Print Standees ({activeTables.length})</span>
+            </button>
+          )}
         </div>
       </div>
 
-      {/* Vercel Deployment Protection Troubleshooting Guide (Critical for QR Scanning) */}
+      {/* Subview Render */}
+      {subView === 'table_history' ? (
+        <TableHistoryView />
+      ) : (
+        <>
+          {/* Vercel Deployment Protection Troubleshooting Guide (Critical for QR Scanning) */}
       <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl text-xs text-amber-900 space-y-2">
         <div className="flex items-center space-x-2 font-bold text-amber-950">
           <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
@@ -401,6 +434,8 @@ export const TablesQrTab: React.FC = () => {
             </div>
           </div>
         </div>
+      )}
+        </>
       )}
     </div>
   );
