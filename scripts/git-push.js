@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import git from 'isomorphic-git';
-import http from 'isomorphic-git/http/node/index.cjs';
+import http from 'isomorphic-git/http/node';
 
 const projectRoot = path.resolve('.');
 
