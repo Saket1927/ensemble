@@ -33,7 +33,7 @@ async function pushToGitHub() {
     force: true,
     onAuth: () => {
       if (token) {
-        return { username: token };
+        return { username: 'Saket1927', password: token };
       }
       return undefined;
     }
