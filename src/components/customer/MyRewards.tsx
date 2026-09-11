@@ -16,6 +16,7 @@ import {
   X,
 } from 'lucide-react';
 import { UnifiedCoupon } from '../../types/tenant';
+import { StandardQRCode } from '../common/StandardQRCode';
 
 interface MyRewardsProps {
   onOpenSpin: () => void;
@@ -289,36 +290,14 @@ export const MyRewards: React.FC<MyRewardsProps> = ({ onOpenSpin, onOpenEarnMore
               {selectedVoucherForQr.rewardLabel}
             </h3>
 
-            {/* High-Contrast Luxury QR Code Presentation */}
-            <div className="bg-white p-4 rounded-2xl border-2 border-slate-900 inline-block shadow-lg">
-              <svg viewBox="0 0 100 100" className="w-48 h-48 mx-auto">
-                <rect width="100" height="100" fill="#ffffff" />
-                {/* Corner Markers */}
-                <rect x="5" y="5" width="25" height="25" fill="#162c21" />
-                <rect x="9" y="9" width="17" height="17" fill="#ffffff" />
-                <rect x="13" y="13" width="9" height="9" fill="#162c21" />
-
-                <rect x="70" y="5" width="25" height="25" fill="#162c21" />
-                <rect x="74" y="9" width="17" height="17" fill="#ffffff" />
-                <rect x="78" y="13" width="9" height="9" fill="#162c21" />
-
-                <rect x="5" y="70" width="25" height="25" fill="#162c21" />
-                <rect x="9" y="74" width="17" height="17" fill="#ffffff" />
-                <rect x="13" y="78" width="9" height="9" fill="#162c21" />
-
-                {/* Pattern Data Grid */}
-                <rect x="36" y="8" width="5" height="10" fill="#162c21" />
-                <rect x="46" y="8" width="8" height="5" fill="#162c21" />
-                <rect x="40" y="22" width="18" height="5" fill="#162c21" />
-                <rect x="8" y="38" width="8" height="18" fill="#162c21" />
-                <rect x="22" y="44" width="12" height="6" fill="#162c21" />
-                <rect x="40" y="40" width="20" height="20" fill="#c5a96d" />
-                <rect x="68" y="38" width="10" height="8" fill="#162c21" />
-                <rect x="82" y="44" width="10" height="18" fill="#162c21" />
-                <rect x="38" y="68" width="14" height="6" fill="#162c21" />
-                <rect x="58" y="74" width="16" height="14" fill="#162c21" />
-                <rect x="78" y="68" width="14" height="8" fill="#162c21" />
-              </svg>
+            {/* Genuine Machine-Readable Voucher QR Code */}
+            <div className="bg-white p-3 rounded-2xl border-2 border-slate-900 inline-block shadow-lg">
+              <StandardQRCode
+                url={selectedVoucherForQr.voucherCode}
+                size={180}
+                showVerifiedBadge={true}
+                errorCorrectionLevel="Q"
+              />
             </div>
 
             <div className="bg-slate-50 p-2 rounded-xl font-mono text-xs font-bold text-slate-800">

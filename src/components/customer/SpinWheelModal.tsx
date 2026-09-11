@@ -3,6 +3,7 @@ import { useTenant } from '../../context/TenantContext';
 import { RewardWheelItem, CustomerReward } from '../../types/tenant';
 import { X, Sparkles, Gift, QrCode, CheckCircle2, ArrowRight } from 'lucide-react';
 import confetti from 'canvas-confetti';
+import { StandardQRCode } from '../common/StandardQRCode';
 
 interface SpinWheelModalProps {
   onClose: () => void;
@@ -271,10 +272,10 @@ export const SpinWheelModal: React.FC<SpinWheelModalProps> = ({ onClose, onRewar
                   </span>
                 </div>
 
-                {/* Billing QR Simulation */}
+                {/* Billing QR Scannable Code */}
                 <div className="flex flex-col items-center py-2 space-y-2">
-                  <div className="p-3 bg-white border-2 border-slate-900 rounded-xl shadow-inner flex items-center justify-center">
-                    <QrCode className="w-24 h-24 text-slate-900" />
+                  <div className="p-2 bg-white border-2 border-slate-900 rounded-xl shadow-inner flex items-center justify-center">
+                    <StandardQRCode url={wonRewardRecord.code} size={110} />
                   </div>
                   <span className="text-[10px] font-bold tracking-wider text-slate-600 uppercase">
                     Show this QR code at billing
