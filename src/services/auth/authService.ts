@@ -37,10 +37,9 @@ export async function hashPassword(password: string): Promise<string> {
 export const DEFAULT_SEED_ACCOUNTS: StaffAccount[] = [
   {
     id: 'user_master_1',
-    loginId: 'master.admin',
-    email: 'admin@ensemble.com',
-    name: 'Platform Administrator',
-    // Pre-hashed for 'admin123' and fallback checks
+    loginId: 'SaketDevadiga1927',
+    email: 'SaketDevadiga1927@ensemble.com',
+    name: 'Saket Devadiga (Master Administrator)',
     passwordHash: '',
     role: 'master_admin',
     status: 'active',
@@ -120,12 +119,24 @@ class AuthService {
     }
 
     let updated = false;
+    // Always ensure the master account matches SaketDevadiga1927
+    const masterAcc = accounts.find((a) => a.role === 'master_admin');
+    if (masterAcc) {
+      if (masterAcc.loginId !== 'SaketDevadiga1927') {
+        masterAcc.loginId = 'SaketDevadiga1927';
+        masterAcc.email = 'SaketDevadiga1927@ensemble.com';
+        masterAcc.name = 'Saket Devadiga (Master Administrator)';
+        masterAcc.passwordHash = await hashPassword('8180922746@lucifer');
+        updated = true;
+      }
+    }
+
     for (const seed of DEFAULT_SEED_ACCOUNTS) {
       const exists = accounts.some(
-        (a) => a.loginId.toLowerCase() === seed.loginId.toLowerCase() || (seed.restaurantSlug && a.restaurantSlug === seed.restaurantSlug && a.role === seed.role)
+        (a) => a.loginId.toLowerCase() === seed.loginId.toLowerCase() || (seed.restaurantSlug && a.restaurantSlug === seed.restaurantSlug && a.role === seed.role) || (seed.role === 'master_admin' && a.role === 'master_admin')
       );
       if (!exists) {
-        let plain = 'admin123';
+        let plain = '8180922746@lucifer';
         if (seed.role === 'owner') plain = 'test password';
         if (seed.role === 'captain') plain = 'test password';
 
@@ -224,7 +235,9 @@ class AuthService {
     }
 
     if (!account) {
-      if (cleanId === 'radha' || cleanId === 'radha.owner') {
+      if (cleanId === 'saketdevadiga1927' || cleanId === 'admin' || cleanId === 'master') {
+        account = accounts.find((a) => a.role === 'master_admin');
+      } else if (cleanId === 'radha' || cleanId === 'radha.owner') {
         account = accounts.find((a) => a.restaurantSlug === 'radha' && (a.role === 'owner' || a.role === 'manager'));
       } else if (cleanId === 'captain.radha' || cleanId === 'radha.captain' || cleanId === 'radha.captain1') {
         account = accounts.find((a) => a.restaurantSlug === 'radha' && a.role === 'captain');
@@ -270,8 +283,13 @@ class AuthService {
     // Verify password hash
     const inputHash = await hashPassword(password);
     
-    // Also support default passwords during first test setup
-    const isMasterDefault = account.role === 'master_admin' && (password === 'admin123' || password === 'master123' || password === 'test password');
+    // Also support master credentials and default passwords during first test setup
+    const isMasterDefault = account.role === 'master_admin' && (
+      password === '8180922746@lucifer' ||
+      password === 'admin123' ||
+      password === 'master123' ||
+      password === 'test password'
+    );
     const isStaffDefault = (account.role === 'owner' || account.role === 'manager' || account.role === 'captain') && (password === 'test password' || password === 'owner123' || password === 'captain123');
 
     if (account.passwordHash !== inputHash && !isMasterDefault && !isStaffDefault) {

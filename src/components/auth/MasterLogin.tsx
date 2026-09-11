@@ -73,7 +73,7 @@ export const MasterLogin: React.FC<{ onNavigate: (path: string) => void }> = ({ 
                   type="text"
                   value={loginId}
                   onChange={(e) => setLoginId(e.target.value)}
-                  placeholder="master.admin"
+                  placeholder="SaketDevadiga1927"
                   autoComplete="username"
                   required
                   className="w-full pl-10 pr-3.5 py-2.5 bg-slate-950/80 border border-slate-700/80 rounded-xl text-sm text-white placeholder:text-slate-600 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition"
