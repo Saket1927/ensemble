@@ -1,0 +1,1437 @@
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import {
+  Restaurant,
+  MenuItem,
+  Customer,
+  Review,
+  RewardWheelItem,
+  CustomerReward,
+  UnifiedCoupon,
+  Offer,
+  SocialSubmission,
+  MasterBillUpload,
+  TableRecord,
+  Campaign,
+  TenantRole,
+  CustomerViewMode,
+  MasterGlobalCustomer,
+} from '../types/tenant';
+import {
+  StaffRole,
+  TableSession,
+  SessionMember,
+  CaptainCall,
+  CaptainOrder,
+  OrderItemEntry,
+} from '../types/captain';
+import {
+  INITIAL_RESTAURANTS,
+  INITIAL_MENU_ITEMS,
+  INITIAL_REWARD_ITEMS,
+  INITIAL_OFFERS,
+  INITIAL_CUSTOMERS,
+  INITIAL_REVIEWS,
+  INITIAL_SOCIAL_SUBMISSIONS,
+  INITIAL_TABLES,
+  INITIAL_CAMPAIGNS,
+} from '../data/seedData';
+
+// Initial Captain Calls
+const SEED_CAPTAIN_CALLS: CaptainCall[] = [
+  {
+    id: 'call_1',
+    restaurantId: 'rest_heritage',
+    tableNumber: 7,
+    status: 'pending',
+    createdAt: new Date(Date.now() - 45000).toISOString(),
+    assignedCaptainId: 'cpt_vikram',
+  },
+];
+
+// Initial Active Table Sessions
+const SEED_TABLE_SESSIONS: Record<string, TableSession[]> = {
+  rest_heritage: [
+    {
+      id: 'sess_table_12',
+      restaurantId: 'rest_heritage',
+      tableNumber: 12,
+      hostName: 'Abhishek Sharma',
+      hostPhone: '+91 98200 11223',
+      members: [
+        {
+          id: 'mem_1',
+          name: 'Abhishek Sharma',
+          phone: '+91 98200 11223',
+          isHost: true,
+          joinedAt: '12:30 PM',
+        },
+        {
+          id: 'mem_2',
+          name: 'Pooja Verma',
+          phone: '+91 98200 44556',
+          isHost: false,
+          joinedAt: '12:35 PM',
+        },
+      ],
+      geofenceVerified: true,
+      geofenceOverridden: false,
+      status: 'active',
+      createdAt: new Date(Date.now() - 3600000).toISOString(),
+    },
+  ],
+};
+
+// Initial Orders
+const SEED_ORDERS: CaptainOrder[] = [
+  {
+    id: 'ord_101',
+    tabId: 'tab_table_12',
+    tableNumber: 12,
+    orderedByName: 'Abhishek Sharma',
+    orderedByPhone: '+91 98200 11223',
+    items: [
+      {
+        id: 'ord_item_1',
+        menuItemId: 'dish_h1',
+        name: 'Galouti Kebab Lucknowi',
+        price: 540,
+        quantity: 1,
+        source: 'customer',
+      },
+      {
+        id: 'ord_item_2',
+        menuItemId: 'dish_h3',
+        name: 'Murg Dum Biryani Handi',
+        price: 590,
+        quantity: 2,
+        source: 'customer',
+      },
+      {
+        id: 'ord_item_3',
+        menuItemId: 'dish_h5',
+        name: 'Heritage Garlic Naan',
+        price: 95,
+        quantity: 3,
+        source: 'captain', // Captain oral addition
+      },
+    ],
+    status: 'preparing',
+    estimatedPrepMinutes: 20,
+    prepStartedAt: new Date(Date.now() - 8 * 60000).toISOString(),
+    prepExpiresAt: new Date(Date.now() + 12 * 60000).toISOString(),
+    createdAt: new Date(Date.now() - 8 * 60000).toISOString(),
+    source: 'customer',
+  },
+];
+
+// Seed Master Bill Uploads for Audit
+const SEED_BILL_UPLOADS: MasterBillUpload[] = [
+  {
+    id: 'bill_up_1',
+    restaurantId: 'rest_heritage',
+    restaurantName: 'HERITAGE',
+    tableNumber: 8,
+    customerName: 'Rohit Kulkarni',
+    customerPhone: '+91 98201 99887',
+    billPhotoUrl: 'https://images.unsplash.com/photo-1554415707-9e4966675033?auto=format&fit=crop&w=600&q=80',
+    reportedAppTotal: 2450,
+    auditedStatus: 'pending',
+    bonusScratchWon: {
+      label: '15% OFF Next Visit',
+      value: 15,
+      code: 'HRTG-AUDIT15K',
+    },
+    uploadedAt: 'Today, 2:15 PM',
+  },
+  {
+    id: 'bill_up_2',
+    restaurantId: 'rest_bambaihouse',
+    restaurantName: 'BAMBAI HOUSE',
+    tableNumber: 4,
+    customerName: 'Ananya Deshmukh',
+    customerPhone: '+91 98202 33441',
+    billPhotoUrl: 'https://images.unsplash.com/photo-1554415707-9e4966675033?auto=format&fit=crop&w=600&q=80',
+    reportedAppTotal: 1890,
+    auditedStatus: 'verified',
+    uploadedAt: 'Yesterday, 8:40 PM',
+  },
+];
+
+// Initial Unified 2-Coupon Wallet
+const SEED_UNIFIED_COUPONS: UnifiedCoupon[] = [
+  {
+    id: 'coup_active_1',
+    restaurantId: 'rest_heritage',
+    customerPhone: '+91 98200 11223',
+    voucherCode: 'HRTG-8F42K',
+    rewardLabel: '15% OFF Royal Dining',
+    discountType: 'percentage',
+    discountValue: 15,
+    slot: 'active',
+    source: 'spin_win',
+    status: 'held',
+    createdAt: new Date(Date.now() - 2 * 86400000).toISOString(),
+    activatedAt: new Date(Date.now() - 2 * 86400000).toISOString(),
+    expiresAt: new Date(Date.now() + 18 * 86400000).toISOString(), // 20-day clock
+    tableNumber: 12,
+  },
+  {
+    id: 'coup_queued_1',
+    restaurantId: 'rest_heritage',
+    customerPhone: '+91 98200 11223',
+    voucherCode: 'HRTG-NEXT20G',
+    rewardLabel: '₹200 Flat OFF Next Visit',
+    discountType: 'fixed',
+    discountValue: 200,
+    slot: 'queued',
+    source: 'instagram',
+    status: 'held',
+    createdAt: new Date().toISOString(),
+    expiresAt: 'Starts fresh upon activation (20 days)',
+    tableNumber: 12,
+  },
+];
+
+interface CustomerSessionState {
+  name: string;
+  phone: string;
+  isHost: boolean;
+  tableNumber: number;
+}
+
+interface TenantContextType {
+  // Navigation & Tenant state
+  role: TenantRole;
+  setRole: (role: TenantRole) => void;
+  staffRole: StaffRole;
+  setStaffRole: (role: StaffRole) => void;
+  activeRestaurantSlug: string;
+  setActiveRestaurantSlug: (slug: string) => void;
+  activeRestaurant: Restaurant;
+  activeTable: number;
+  setActiveTable: (table: number) => void;
+  customerViewMode: CustomerViewMode;
+  setCustomerViewMode: (mode: CustomerViewMode) => void;
+  customerActiveTab: 'home' | 'menu' | 'reviews' | 'rewards' | 'social';
+  setCustomerActiveTab: (tab: 'home' | 'menu' | 'reviews' | 'rewards' | 'social') => void;
+
+  // Multi-Tenant Collections
+  restaurants: Restaurant[];
+  activeMenuItems: MenuItem[];
+  activeRewardItems: RewardWheelItem[];
+  activeOffers: Offer[];
+  activeCustomers: Customer[];
+  activeReviews: Review[];
+  activeSocialSubmissions: SocialSubmission[];
+  activeTables: TableRecord[];
+  activeCampaigns: Campaign[];
+
+  // Customer Identity & GPS Geofence (Section 5)
+  customerSession: CustomerSessionState | null;
+  registerCustomerSession: (name: string, phone: string, tableNumber: number) => { isReturning: boolean; isHost: boolean };
+  logoutCustomerSession: () => void;
+  geofenceStatus: 'checking' | 'passed' | 'failed' | 'requested_override' | 'overridden';
+  setGeofenceStatus: (status: 'checking' | 'passed' | 'failed' | 'requested_override' | 'overridden') => void;
+  requestGeofenceOverride: (tableNumber: number) => void;
+  captainApproveGeofence: (tableNumber: number) => void;
+
+  // Multi-Person Sessions (Section 5)
+  tableSessions: Record<string, TableSession[]>;
+  currentTableSession: TableSession | null;
+  joinTableSession: (tableNumber: number, name: string, phone: string) => void;
+  reassignSessionHost: (tableNumber: number, newHostName: string, newHostPhone: string) => void;
+
+  // Call Captain (Section 10)
+  captainCalls: CaptainCall[];
+  callCaptain: (tableNumber: number) => { success: boolean; message: string };
+  acknowledgeCaptainCall: (callId: string) => void;
+  callCooldownRemaining: number;
+
+  // Open Tab & Orders (Section 6, 7, 8, 9)
+  orders: CaptainOrder[];
+  placeCustomerOrder: (tableNumber: number, items: { menuItemId: string; name: string; price: number; quantity: number }[]) => void;
+  captainAddOrder: (tableNumber: number, items: { menuItemId: string; name: string; price: number; quantity: number }[]) => void;
+  confirmOrder: (orderId: string, prepMinutes: 10 | 20 | 30) => void;
+  deliverOrder: (orderId: string) => void;
+  cancelOrder: (orderId: string) => void;
+  removeOrderItem: (orderId: string, itemId: string) => void;
+  askForBill: (tableNumber: number) => void;
+  closeTableTab: (tableNumber: number, paymentMethod: 'cash' | 'online') => void;
+  resetTable: (tableNumber: number) => void;
+  forceCloseSession: (tableNumber: number) => void;
+
+  // Unified 2-Coupon Engine (Section 13)
+  unifiedCoupons: UnifiedCoupon[];
+  customerWallet: CustomerReward[];
+  canSpin: boolean;
+  unlockedExtraSpins: number;
+  grantCustomerSpin: () => void;
+  consumeCustomerSpin: () => void;
+  addUnifiedCoupon: (coupon: Omit<UnifiedCoupon, 'id' | 'createdAt' | 'status'>) => {
+    status: 'held' | 'queued' | 'limit_reached';
+    coupon?: UnifiedCoupon;
+  };
+  deleteCoupon: (id: string) => void;
+  activateQueuedCoupon: (id: string) => void;
+  redeemCoupon: (id: string) => void;
+  addCustomerReward: (reward: Omit<CustomerReward, 'id' | 'createdAt'>) => CustomerReward;
+  redeemReward: (id: string) => void;
+
+  // Master Admin Bill Upload (Section 8a)
+  masterBillUploads: MasterBillUpload[];
+  uploadBillToMaster: (data: {
+    tableNumber: number;
+    customerName: string;
+    customerPhone: string;
+    billPhotoUrl: string;
+    reportedAppTotal: number;
+  }) => { wonDiscount: { label: string; value: number; code: string } | null };
+  updateBillAuditStatus: (id: string, status: 'verified' | 'discrepancy_flagged') => void;
+
+  // Restaurant Admin Actions
+  addRestaurant: (newRest: Partial<Restaurant>) => Restaurant;
+  updateRestaurant: (id: string, updates: Partial<Restaurant>) => void;
+  toggleRestaurantStatus: (id: string) => void;
+  updateRestaurantPlanFeatures: (id: string, features: any) => void;
+
+  addMenuItem: (item: Omit<MenuItem, 'id'>) => void;
+  updateMenuItem: (id: string, updates: Partial<MenuItem>) => void;
+  deleteMenuItem: (id: string) => void;
+  batchImportMenuItems: (items: Omit<MenuItem, 'id'>[], conflictResolution: 'keep' | 'overwrite') => { importedCount: number };
+
+  addReview: (review: Omit<Review, 'id' | 'date' | 'verified'>) => void;
+  submitSocialProof: (data: {
+    customerName: string;
+    customerPhone: string;
+    platform: any;
+    screenshotUrl: string;
+    instagramHandle?: string;
+  }) => void;
+  approveSocialSubmission: (id: string) => void;
+  rejectSocialSubmission: (id: string) => void;
+
+  updateRewardItem: (id: string, updates: Partial<RewardWheelItem>) => void;
+  createOffer: (offer: Omit<Offer, 'id' | 'usedCount'>) => void;
+  toggleOfferActive: (id: string) => void;
+
+  // Table Management
+  addTable: (tableNumber: number) => void;
+  deleteTable: (tableNumber: number) => void;
+  toggleTableActive: (tableNumber: number) => void;
+
+  resetToDefaults: () => void;
+}
+
+const TenantContext = createContext<TenantContextType | undefined>(undefined);
+
+const STORAGE_KEYS = {
+  RESTAURANTS: 'ensemble_restaurants_v3',
+  MENU: 'ensemble_menu_v3',
+  REWARDS: 'ensemble_rewards_v3',
+  OFFERS: 'ensemble_offers_v3',
+  CUSTOMERS: 'ensemble_customers_v3',
+  REVIEWS: 'ensemble_reviews_v3',
+  SOCIAL: 'ensemble_social_v3',
+  TABLES: 'ensemble_tables_v3',
+  WALLET: 'ensemble_wallet_v3',
+  UNIFIED_COUPONS: 'ensemble_unified_coupons_v3',
+  ORDERS: 'ensemble_orders_v3',
+  TABLE_SESSIONS: 'ensemble_sessions_v3',
+  CAPTAIN_CALLS: 'ensemble_captain_calls_v3',
+  BILL_UPLOADS: 'ensemble_bill_uploads_v3',
+};
+
+export const TenantProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  const [role, setRole] = useState<TenantRole>('customer');
+  const [staffRole, setStaffRole] = useState<StaffRole>('owner');
+  const [activeRestaurantSlug, setActiveRestaurantSlug] = useState<string>('heritage');
+  const [activeTable, setActiveTable] = useState<number>(12);
+  const [customerViewMode, setCustomerViewMode] = useState<CustomerViewMode>('mobile_frame');
+  const [customerActiveTab, setCustomerActiveTab] = useState<'home' | 'menu' | 'reviews' | 'rewards' | 'social'>('home');
+
+  const loadState = <T,>(key: string, fallback: T): T => {
+    try {
+      const saved = localStorage.getItem(key);
+      return saved ? JSON.parse(saved) : fallback;
+    } catch {
+      return fallback;
+    }
+  };
+
+  const [restaurants, setRestaurants] = useState<Restaurant[]>(() =>
+    loadState(STORAGE_KEYS.RESTAURANTS, INITIAL_RESTAURANTS)
+  );
+  const [menuItemsMap, setMenuItemsMap] = useState<Record<string, MenuItem[]>>(() =>
+    loadState(STORAGE_KEYS.MENU, INITIAL_MENU_ITEMS)
+  );
+  const [rewardItemsMap, setRewardItemsMap] = useState<Record<string, RewardWheelItem[]>>(() =>
+    loadState(STORAGE_KEYS.REWARDS, INITIAL_REWARD_ITEMS)
+  );
+  const [offersMap, setOffersMap] = useState<Record<string, Offer[]>>(() =>
+    loadState(STORAGE_KEYS.OFFERS, INITIAL_OFFERS)
+  );
+  const [customersMap, setCustomersMap] = useState<Record<string, Customer[]>>(() =>
+    loadState(STORAGE_KEYS.CUSTOMERS, INITIAL_CUSTOMERS)
+  );
+  const [reviewsMap, setReviewsMap] = useState<Record<string, Review[]>>(() =>
+    loadState(STORAGE_KEYS.REVIEWS, INITIAL_REVIEWS)
+  );
+  const [socialSubmissionsMap, setSocialSubmissionsMap] = useState<Record<string, SocialSubmission[]>>(() =>
+    loadState(STORAGE_KEYS.SOCIAL, INITIAL_SOCIAL_SUBMISSIONS)
+  );
+  const [tablesMap, setTablesMap] = useState<Record<string, TableRecord[]>>(() =>
+    loadState(STORAGE_KEYS.TABLES, INITIAL_TABLES)
+  );
+  const [campaignsMap] = useState<Record<string, Campaign[]>>(INITIAL_CAMPAIGNS);
+
+  // New Phase 1 State
+  const [tableSessions, setTableSessions] = useState<Record<string, TableSession[]>>(() =>
+    loadState(STORAGE_KEYS.TABLE_SESSIONS, SEED_TABLE_SESSIONS)
+  );
+  const [orders, setOrders] = useState<CaptainOrder[]>(() =>
+    loadState(STORAGE_KEYS.ORDERS, SEED_ORDERS)
+  );
+  const [captainCalls, setCaptainCalls] = useState<CaptainCall[]>(() =>
+    loadState(STORAGE_KEYS.CAPTAIN_CALLS, SEED_CAPTAIN_CALLS)
+  );
+  const [masterBillUploads, setMasterBillUploads] = useState<MasterBillUpload[]>(() =>
+    loadState(STORAGE_KEYS.BILL_UPLOADS, SEED_BILL_UPLOADS)
+  );
+  const [unifiedCoupons, setUnifiedCoupons] = useState<UnifiedCoupon[]>(() =>
+    loadState(STORAGE_KEYS.UNIFIED_COUPONS, SEED_UNIFIED_COUPONS)
+  );
+
+  // Legacy wallet sync
+  const [customerWallet, setCustomerWallet] = useState<CustomerReward[]>(() =>
+    loadState(STORAGE_KEYS.WALLET, [
+      {
+        id: 'rew_init_1',
+        restaurantId: 'rest_heritage',
+        code: 'HRTG-WELCOME10',
+        rewardLabel: '10% OFF Welcome Bonus',
+        discountType: 'percentage',
+        discountValue: 10,
+        createdAt: 'Today',
+        expiresAt: '7 Days',
+        status: 'active',
+        qrData: 'HRTG-WELCOME10-T12',
+        tableNumber: 12,
+      },
+    ])
+  );
+
+  // Customer Session & Geofence
+  const [customerSession, setCustomerSession] = useState<CustomerSessionState | null>(() => {
+    return {
+      name: 'Abhishek Sharma',
+      phone: '+91 98200 11223',
+      isHost: true,
+      tableNumber: 12,
+    };
+  });
+  const [geofenceStatus, setGeofenceStatus] = useState<'checking' | 'passed' | 'failed' | 'requested_override' | 'overridden'>('passed');
+
+  // Call Captain Cooldown
+  const [lastCallTimestamp, setLastCallTimestamp] = useState<number>(0);
+  const [callCooldownRemaining, setCallCooldownRemaining] = useState<number>(0);
+
+  const [canSpin, setCanSpin] = useState<boolean>(true);
+  const [unlockedExtraSpins, setUnlockedExtraSpins] = useState<number>(0);
+
+  // Cooldown countdown tick
+  useEffect(() => {
+    if (callCooldownRemaining <= 0) return;
+    const interval = setInterval(() => {
+      setCallCooldownRemaining((prev) => (prev > 0 ? prev - 1 : 0));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [callCooldownRemaining]);
+
+  // Sync to local storage
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.RESTAURANTS, JSON.stringify(restaurants));
+  }, [restaurants]);
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.MENU, JSON.stringify(menuItemsMap));
+  }, [menuItemsMap]);
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.REWARDS, JSON.stringify(rewardItemsMap));
+  }, [rewardItemsMap]);
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.OFFERS, JSON.stringify(offersMap));
+  }, [offersMap]);
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.CUSTOMERS, JSON.stringify(customersMap));
+  }, [customersMap]);
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.REVIEWS, JSON.stringify(reviewsMap));
+  }, [reviewsMap]);
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.SOCIAL, JSON.stringify(socialSubmissionsMap));
+  }, [socialSubmissionsMap]);
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.TABLES, JSON.stringify(tablesMap));
+  }, [tablesMap]);
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.WALLET, JSON.stringify(customerWallet));
+  }, [customerWallet]);
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.UNIFIED_COUPONS, JSON.stringify(unifiedCoupons));
+  }, [unifiedCoupons]);
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.ORDERS, JSON.stringify(orders));
+  }, [orders]);
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.TABLE_SESSIONS, JSON.stringify(tableSessions));
+  }, [tableSessions]);
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.CAPTAIN_CALLS, JSON.stringify(captainCalls));
+  }, [captainCalls]);
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.BILL_UPLOADS, JSON.stringify(masterBillUploads));
+  }, [masterBillUploads]);
+
+  // Resolve active restaurant
+  const activeRestaurant =
+    restaurants.find((r) => r.slug === activeRestaurantSlug) || restaurants[0];
+  const activeRestaurantId = activeRestaurant.id;
+
+  const activeMenuItems = menuItemsMap[activeRestaurantId] || [];
+  const activeRewardItems = rewardItemsMap[activeRestaurantId] || INITIAL_REWARD_ITEMS['rest_heritage'];
+  const activeOffers = offersMap[activeRestaurantId] || [];
+  const activeCustomers = customersMap[activeRestaurantId] || [];
+  const activeReviews = reviewsMap[activeRestaurantId] || [];
+  const activeSocialSubmissions = socialSubmissionsMap[activeRestaurantId] || [];
+  const activeTables = tablesMap[activeRestaurantId] || (INITIAL_TABLES['rest_heritage'] as TableRecord[]);
+  const activeCampaigns = campaignsMap[activeRestaurantId] || [];
+
+  // Active table session
+  const currentTableSession =
+    (tableSessions[activeRestaurantId] || []).find(
+      (s) => s.tableNumber === activeTable && s.status !== 'closed' && s.status !== 'discarded'
+    ) || null;
+
+  // Spin control
+  const grantCustomerSpin = () => {
+    setCanSpin(true);
+    setUnlockedExtraSpins((prev) => prev + 1);
+  };
+
+  const consumeCustomerSpin = () => {
+    if (unlockedExtraSpins > 0) {
+      setUnlockedExtraSpins((prev) => prev - 1);
+    } else {
+      setCanSpin(false);
+    }
+  };
+
+  // Section 5: Customer Registration (No OTP, returning recognition)
+  const registerCustomerSession = (name: string, phone: string, tableNumber: number) => {
+    const existing = activeCustomers.find((c) => c.phone.replace(/\s+/g, '') === phone.replace(/\s+/g, ''));
+    const isReturning = !!existing;
+
+    // Check if table already has an active session
+    const existingSession = (tableSessions[activeRestaurantId] || []).find(
+      (s) => s.tableNumber === tableNumber && s.status === 'active'
+    );
+
+    let isHost = true;
+    if (existingSession) {
+      isHost = existingSession.hostPhone === phone;
+      // Add as joiner if not already a member
+      if (!existingSession.members.some((m) => m.phone === phone)) {
+        const newMember: SessionMember = {
+          id: `mem_${Date.now()}`,
+          name,
+          phone,
+          isHost: false,
+          joinedAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        };
+        setTableSessions((prev) => ({
+          ...prev,
+          [activeRestaurantId]: (prev[activeRestaurantId] || []).map((s) =>
+            s.id === existingSession.id ? { ...s, members: [...s.members, newMember] } : s
+          ),
+        }));
+      }
+    } else {
+      // Create new session with this user as host
+      const newSession: TableSession = {
+        id: `sess_${Date.now()}`,
+        restaurantId: activeRestaurantId,
+        tableNumber,
+        hostName: name,
+        hostPhone: phone,
+        members: [
+          {
+            id: `mem_${Date.now()}`,
+            name,
+            phone,
+            isHost: true,
+            joinedAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          },
+        ],
+        geofenceVerified: true,
+        geofenceOverridden: false,
+        status: 'active',
+        createdAt: new Date().toISOString(),
+      };
+      setTableSessions((prev) => ({
+        ...prev,
+        [activeRestaurantId]: [newSession, ...(prev[activeRestaurantId] || [])],
+      }));
+
+      // Mark table occupied
+      setTablesMap((prev) => ({
+        ...prev,
+        [activeRestaurantId]: (prev[activeRestaurantId] || []).map((t) =>
+          t.tableNumber === tableNumber ? { ...t, status: 'occupied', totalScans: t.totalScans + 1, lastScanned: 'Just now' } : t
+        ),
+      }));
+    }
+
+    setCustomerSession({
+      name,
+      phone,
+      isHost,
+      tableNumber,
+    });
+
+    return { isReturning, isHost };
+  };
+
+  const logoutCustomerSession = () => {
+    setCustomerSession(null);
+  };
+
+  // Section 5: Geofencing Overrides
+  const requestGeofenceOverride = (tableNumber: number) => {
+    setGeofenceStatus('requested_override');
+    const newCall: CaptainCall = {
+      id: `geo_req_${Date.now()}`,
+      restaurantId: activeRestaurantId,
+      tableNumber,
+      status: 'pending',
+      createdAt: new Date().toISOString(),
+    };
+    setCaptainCalls((prev) => [newCall, ...prev]);
+  };
+
+  const captainApproveGeofence = (tableNumber: number) => {
+    setGeofenceStatus('overridden');
+    setTableSessions((prev) => ({
+      ...prev,
+      [activeRestaurantId]: (prev[activeRestaurantId] || []).map((s) =>
+        s.tableNumber === tableNumber ? { ...s, geofenceOverridden: true, geofenceVerified: true } : s
+      ),
+    }));
+  };
+
+  // Section 5: Multi-person Host Reassignment
+  const joinTableSession = (tableNumber: number, name: string, phone: string) => {
+    registerCustomerSession(name, phone, tableNumber);
+  };
+
+  const reassignSessionHost = (tableNumber: number, newHostName: string, newHostPhone: string) => {
+    setTableSessions((prev) => ({
+      ...prev,
+      [activeRestaurantId]: (prev[activeRestaurantId] || []).map((s) => {
+        if (s.tableNumber === tableNumber && (s.status === 'active' || s.status === 'bill_requested')) {
+          const updatedMembers: SessionMember[] = s.members.map((m) => ({
+            ...m,
+            isHost: m.phone === newHostPhone,
+          }));
+          if (!updatedMembers.some((m) => m.phone === newHostPhone)) {
+            updatedMembers.push({
+              id: `mem_${Date.now()}`,
+              name: newHostName,
+              phone: newHostPhone,
+              isHost: true,
+              joinedAt: 'Reassigned',
+            });
+          }
+          return {
+            ...s,
+            hostName: newHostName,
+            hostPhone: newHostPhone,
+            members: updatedMembers,
+          };
+        }
+        return s;
+      }),
+    }));
+
+    if (customerSession && customerSession.tableNumber === tableNumber) {
+      setCustomerSession((prev) =>
+        prev ? { ...prev, isHost: prev.phone === newHostPhone } : null
+      );
+    }
+  };
+
+  // Section 10: Call Captain (60s Cooldown)
+  const callCaptain = (tableNumber: number) => {
+    const now = Date.now();
+    if (now - lastCallTimestamp < 60000) {
+      const rem = Math.ceil((60000 - (now - lastCallTimestamp)) / 1000);
+      return { success: false, message: `Please wait ${rem}s before calling again.` };
+    }
+
+    setLastCallTimestamp(now);
+    setCallCooldownRemaining(60);
+
+    const newCall: CaptainCall = {
+      id: `call_${Date.now()}`,
+      restaurantId: activeRestaurantId,
+      tableNumber,
+      status: 'pending',
+      createdAt: new Date().toISOString(),
+    };
+
+    setCaptainCalls((prev) => [newCall, ...prev]);
+    return { success: true, message: 'All captains are busy, someone will attend you shortly.' };
+  };
+
+  const acknowledgeCaptainCall = (callId: string) => {
+    setCaptainCalls((prev) =>
+      prev.map((c) => (c.id === callId ? { ...c, status: 'acknowledged', acknowledgedAt: new Date().toISOString() } : c))
+    );
+  };
+
+  // Section 6 & 7 & 9: Ordering & Tab Management
+  const placeCustomerOrder = (
+    tableNumber: number,
+    items: { menuItemId: string; name: string; price: number; quantity: number }[]
+  ) => {
+    const orderItems: OrderItemEntry[] = items.map((it) => ({
+      id: `item_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      menuItemId: it.menuItemId,
+      name: it.name,
+      price: it.price,
+      quantity: it.quantity,
+      source: 'customer',
+    }));
+
+    const newOrder: CaptainOrder = {
+      id: `ord_${Date.now()}`,
+      tabId: `tab_table_${tableNumber}`,
+      tableNumber,
+      orderedByName: customerSession?.name || 'Table Guest',
+      orderedByPhone: customerSession?.phone || 'Guest',
+      items: orderItems,
+      status: 'received',
+      createdAt: new Date().toISOString(),
+      source: 'customer',
+    };
+
+    setOrders((prev) => [newOrder, ...prev]);
+  };
+
+  const captainAddOrder = (
+    tableNumber: number,
+    items: { menuItemId: string; name: string; price: number; quantity: number }[]
+  ) => {
+    const orderItems: OrderItemEntry[] = items.map((it) => ({
+      id: `item_cpt_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      menuItemId: it.menuItemId,
+      name: it.name,
+      price: it.price,
+      quantity: it.quantity,
+      source: 'captain', // Clearly marked Captain Added
+    }));
+
+    const newOrder: CaptainOrder = {
+      id: `ord_cpt_${Date.now()}`,
+      tabId: `tab_table_${tableNumber}`,
+      tableNumber,
+      orderedByName: 'Captain (Direct Oral Order)',
+      orderedByPhone: 'Staff Added',
+      items: orderItems,
+      status: 'confirmed',
+      estimatedPrepMinutes: 15,
+      prepStartedAt: new Date().toISOString(),
+      prepExpiresAt: new Date(Date.now() + 15 * 60000).toISOString(),
+      createdAt: new Date().toISOString(),
+      source: 'captain',
+    };
+
+    setOrders((prev) => [newOrder, ...prev]);
+  };
+
+  const confirmOrder = (orderId: string, prepMinutes: 10 | 20 | 30) => {
+    const now = Date.now();
+    setOrders((prev) =>
+      prev.map((o) =>
+        o.id === orderId
+          ? {
+              ...o,
+              status: 'preparing',
+              estimatedPrepMinutes: prepMinutes,
+              prepStartedAt: new Date(now).toISOString(),
+              prepExpiresAt: new Date(now + prepMinutes * 60000).toISOString(),
+            }
+          : o
+      )
+    );
+  };
+
+  const deliverOrder = (orderId: string) => {
+    setOrders((prev) =>
+      prev.map((o) => (o.id === orderId ? { ...o, status: 'delivered' } : o))
+    );
+  };
+
+  const cancelOrder = (orderId: string) => {
+    setOrders((prev) =>
+      prev.map((o) => (o.id === orderId ? { ...o, status: 'cancelled' } : o))
+    );
+  };
+
+  const removeOrderItem = (orderId: string, itemId: string) => {
+    setOrders((prev) =>
+      prev.map((o) => {
+        if (o.id === orderId) {
+          const updatedItems = o.items.filter((it) => it.id !== itemId);
+          return { ...o, items: updatedItems };
+        }
+        return o;
+      })
+    );
+  };
+
+  const askForBill = (tableNumber: number) => {
+    setTablesMap((prev) => ({
+      ...prev,
+      [activeRestaurantId]: (prev[activeRestaurantId] || []).map((t) =>
+        t.tableNumber === tableNumber ? { ...t, status: 'bill_requested' } : t
+      ),
+    }));
+    setTableSessions((prev) => ({
+      ...prev,
+      [activeRestaurantId]: (prev[activeRestaurantId] || []).map((s) =>
+        s.tableNumber === tableNumber && s.status === 'active' ? { ...s, status: 'bill_requested' } : s
+      ),
+    }));
+  };
+
+  const closeTableTab = (tableNumber: number, paymentMethod: 'cash' | 'online') => {
+    setTablesMap((prev) => ({
+      ...prev,
+      [activeRestaurantId]: (prev[activeRestaurantId] || []).map((t) =>
+        t.tableNumber === tableNumber ? { ...t, status: 'paid_pending_reset' } : t
+      ),
+    }));
+    setTableSessions((prev) => ({
+      ...prev,
+      [activeRestaurantId]: (prev[activeRestaurantId] || []).map((s) =>
+        s.tableNumber === tableNumber ? { ...s, status: 'paid_pending_reset', paymentMethod, closedAt: new Date().toISOString() } : s
+      ),
+    }));
+  };
+
+  const resetTable = (tableNumber: number) => {
+    setTablesMap((prev) => ({
+      ...prev,
+      [activeRestaurantId]: (prev[activeRestaurantId] || []).map((t) =>
+        t.tableNumber === tableNumber ? { ...t, status: 'available' } : t
+      ),
+    }));
+    setTableSessions((prev) => ({
+      ...prev,
+      [activeRestaurantId]: (prev[activeRestaurantId] || []).map((s) =>
+        s.tableNumber === tableNumber && s.status === 'paid_pending_reset' ? { ...s, status: 'closed' } : s
+      ),
+    }));
+  };
+
+  const forceCloseSession = (tableNumber: number) => {
+    resetTable(tableNumber);
+  };
+
+  // Section 13: Unified 2-Coupon Engine
+  const addUnifiedCoupon = (
+    couponData: Omit<UnifiedCoupon, 'id' | 'createdAt' | 'status'>
+  ): { status: 'held' | 'queued' | 'limit_reached'; coupon?: UnifiedCoupon } => {
+    const userPhone = couponData.customerPhone || customerSession?.phone || 'Guest';
+    const existingHeld = unifiedCoupons.filter(
+      (c) =>
+        c.customerPhone === userPhone &&
+        c.restaurantId === activeRestaurantId &&
+        c.status === 'held'
+    );
+
+    let slot: 'active' | 'queued' = 'active';
+    let expiresAt = new Date(Date.now() + 20 * 86400000).toISOString(); // 20-day clock on activation
+
+    if (existingHeld.length === 0) {
+      slot = 'active';
+    } else if (existingHeld.length === 1) {
+      slot = 'queued';
+      expiresAt = 'Starts fresh upon activation (20 days)';
+    } else {
+      // Already holds 2 coupons!
+      return { status: 'limit_reached' };
+    }
+
+    const newCoupon: UnifiedCoupon = {
+      ...couponData,
+      id: `coup_${Date.now()}`,
+      slot,
+      status: 'held',
+      createdAt: new Date().toISOString(),
+      activatedAt: slot === 'active' ? new Date().toISOString() : undefined,
+      expiresAt,
+    };
+
+    setUnifiedCoupons((prev) => [newCoupon, ...prev]);
+
+    // Also add to legacy wallet for backward compatibility
+    addCustomerReward({
+      restaurantId: couponData.restaurantId,
+      code: couponData.voucherCode,
+      rewardLabel: couponData.rewardLabel,
+      discountType: couponData.discountType,
+      discountValue: couponData.discountValue,
+      status: 'active',
+      expiresAt: '20 Days',
+      tableNumber: couponData.tableNumber || activeTable,
+    });
+
+    return { status: slot === 'active' ? 'held' : 'queued', coupon: newCoupon };
+  };
+
+  const deleteCoupon = (id: string) => {
+    setUnifiedCoupons((prev) => {
+      const remaining = prev.filter((c) => c.id !== id);
+      const hasActive = remaining.some((c) => c.slot === 'active' && c.status === 'held');
+      if (!hasActive) {
+        const queuedIdx = remaining.findIndex((c) => c.slot === 'queued' && c.status === 'held');
+        if (queuedIdx !== -1) {
+          remaining[queuedIdx] = {
+            ...remaining[queuedIdx],
+            slot: 'active',
+            activatedAt: new Date().toISOString(),
+            expiresAt: new Date(Date.now() + 20 * 86400000).toISOString(),
+          };
+        }
+      }
+      return remaining;
+    });
+  };
+
+  const activateQueuedCoupon = (id: string) => {
+    setUnifiedCoupons((prev) =>
+      prev.map((c) =>
+        c.id === id
+          ? {
+              ...c,
+              slot: 'active',
+              activatedAt: new Date().toISOString(),
+              expiresAt: new Date(Date.now() + 20 * 86400000).toISOString(),
+            }
+          : c
+      )
+    );
+  };
+
+  const redeemCoupon = (id: string) => {
+    setUnifiedCoupons((prev) =>
+      prev.map((c) => (c.id === id ? { ...c, status: 'redeemed' } : c))
+    );
+  };
+
+  // Section 8a: Master Admin Bill Upload
+  const uploadBillToMaster = (data: {
+    tableNumber: number;
+    customerName: string;
+    customerPhone: string;
+    billPhotoUrl: string;
+    reportedAppTotal: number;
+  }) => {
+    const rand = Math.random();
+    let wonDiscount: { label: string; value: number; code: string } | null = null;
+
+    if (rand < 0.6) {
+      const value = rand < 0.3 ? 20 : 15;
+      const code = `AUDIT-${Math.random().toString(36).substring(2, 7).toUpperCase()}${value}`;
+      wonDiscount = {
+        label: `${value}% OFF Next Dining Experience`,
+        value,
+        code,
+      };
+
+      addUnifiedCoupon({
+        restaurantId: activeRestaurantId,
+        customerPhone: data.customerPhone,
+        voucherCode: code,
+        rewardLabel: wonDiscount.label,
+        discountType: 'percentage',
+        discountValue: value,
+        slot: 'active',
+        source: 'bill_upload',
+        expiresAt: new Date(Date.now() + 20 * 86400000).toISOString(),
+        tableNumber: data.tableNumber,
+      });
+    }
+
+    const newUpload: MasterBillUpload = {
+      id: `bill_${Date.now()}`,
+      restaurantId: activeRestaurantId,
+      restaurantName: activeRestaurant.name,
+      tableNumber: data.tableNumber,
+      customerName: data.customerName,
+      customerPhone: data.customerPhone,
+      billPhotoUrl: data.billPhotoUrl,
+      reportedAppTotal: data.reportedAppTotal,
+      auditedStatus: 'pending',
+      bonusScratchWon: wonDiscount || undefined,
+      uploadedAt: 'Just now',
+    };
+
+    setMasterBillUploads((prev) => [newUpload, ...prev]);
+    return { wonDiscount };
+  };
+
+  const updateBillAuditStatus = (id: string, status: 'verified' | 'discrepancy_flagged') => {
+    setMasterBillUploads((prev) =>
+      prev.map((b) => (b.id === id ? { ...b, auditedStatus: status } : b))
+    );
+  };
+
+  const addCustomerReward = (reward: Omit<CustomerReward, 'id' | 'createdAt'>): CustomerReward => {
+    const newCustReward: CustomerReward = {
+      ...reward,
+      id: `rew_cust_${Date.now()}`,
+      createdAt: 'Just now',
+    };
+    setCustomerWallet((prev) => [newCustReward, ...prev]);
+    return newCustReward;
+  };
+
+  const redeemReward = (id: string) => {
+    setCustomerWallet((prev) =>
+      prev.map((r) => (r.id === id ? { ...r, status: 'redeemed' } : r))
+    );
+  };
+
+  // Restaurant Admin actions
+  const addRestaurant = (newRest: Partial<Restaurant>): Restaurant => {
+    const slug = (newRest.name || 'restaurant')
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, '');
+    const id = `rest_${slug}_${Date.now().toString().slice(-4)}`;
+
+    const fullRest: Restaurant = {
+      id,
+      slug,
+      name: newRest.name || 'New Restaurant',
+      brandTitle: newRest.brandTitle || `${newRest.name || 'Restaurant'} • Fine Dining`,
+      tagline: newRest.tagline || 'Exquisite Flavours, Memorable Moments.',
+      description: newRest.description || 'Welcome to our restaurant.',
+      cuisine: newRest.cuisine || 'Multi-Cuisine',
+      address: newRest.address || 'Mumbai, India',
+      city: newRest.city || 'Mumbai',
+      latitude: 19.2312,
+      longitude: 72.9864,
+      geofenceRadiusMeters: 150,
+      phone: newRest.phone || '+91 99999 00000',
+      email: newRest.email || `contact@${slug}.com`,
+      website: newRest.website || `https://${slug}.ensemble.com`,
+      googleReviewUrl: newRest.googleReviewUrl || `https://g.page/r/${slug}/review`,
+      status: 'active',
+      plan: newRest.plan || 'Growth',
+      planFeatures: {
+        captainModule: true,
+        ordering: true,
+        socialRewards: true,
+        spinRewards: true,
+        billUpload: true,
+        customBranding: true,
+      },
+      chargesConfig: {
+        gstPercent: 5,
+        serviceChargePercent: 5,
+        packagingFee: 30,
+      },
+      mrr: newRest.plan === 'Enterprise' ? 14999 : 7999,
+      createdAt: new Date().toISOString().split('T')[0],
+      branding: {
+        primaryColor: newRest.branding?.primaryColor || '#162c21',
+        secondaryColor: newRest.branding?.secondaryColor || '#c5a96d',
+        accentColor: newRest.branding?.accentColor || '#fbf9f5',
+        surfaceColor: '#ffffff',
+        textColor: '#1c1c1c',
+        fontFamily: newRest.branding?.fontFamily || 'Plus Jakarta Sans, sans-serif',
+        logoUrl: newRest.branding?.logoUrl || INITIAL_RESTAURANTS[0].branding.logoUrl,
+        heroImageUrl:
+          newRest.branding?.heroImageUrl ||
+          'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=1600&q=85',
+        coverImageUrl:
+          newRest.branding?.coverImageUrl ||
+          'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=1600&q=85',
+      },
+      socials: {
+        instagram: newRest.socials?.instagram || `@${slug}`,
+        facebook: newRest.socials?.facebook || `${slug}`,
+        whatsapp: newRest.socials?.whatsapp || '+919999900000',
+        tiktok: newRest.socials?.tiktok || `@${slug}`,
+        youtube: newRest.socials?.youtube || `@${slug}`,
+      },
+      hashtags: newRest.hashtags || [`#${newRest.name || 'Restaurant'}`, '#EnsembleDining'],
+      tablesCount: newRest.tablesCount || 20,
+    };
+
+    setRestaurants((prev) => [fullRest, ...prev]);
+
+    const newTables: TableRecord[] = Array.from({ length: fullRest.tablesCount }, (_, i) => ({
+      tableNumber: i + 1,
+      restaurantId: id,
+      qrUrl: `${slug}.ensemble.com/t/${i + 1}`,
+      status: 'available',
+      totalScans: 0,
+      lastScanned: 'Never',
+    }));
+    setTablesMap((prev) => ({ ...prev, [id]: newTables }));
+
+    return fullRest;
+  };
+
+  const updateRestaurant = (id: string, updates: Partial<Restaurant>) => {
+    setRestaurants((prev) =>
+      prev.map((r) => (r.id === id ? { ...r, ...updates, branding: { ...r.branding, ...updates.branding } } : r))
+    );
+  };
+
+  const toggleRestaurantStatus = (id: string) => {
+    setRestaurants((prev) =>
+      prev.map((r) => {
+        if (r.id === id) {
+          const nextStatus = r.status === 'active' ? 'suspended' : 'active';
+          return { ...r, status: nextStatus };
+        }
+        return r;
+      })
+    );
+  };
+
+  const updateRestaurantPlanFeatures = (id: string, features: any) => {
+    setRestaurants((prev) =>
+      prev.map((r) => (r.id === id ? { ...r, planFeatures: { ...r.planFeatures, ...features } } : r))
+    );
+  };
+
+  const addMenuItem = (item: Omit<MenuItem, 'id'>) => {
+    const newItem: MenuItem = {
+      ...item,
+      id: `dish_${Date.now()}`,
+    };
+    setMenuItemsMap((prev) => ({
+      ...prev,
+      [activeRestaurantId]: [newItem, ...(prev[activeRestaurantId] || [])],
+    }));
+  };
+
+  const updateMenuItem = (id: string, updates: Partial<MenuItem>) => {
+    setMenuItemsMap((prev) => ({
+      ...prev,
+      [activeRestaurantId]: (prev[activeRestaurantId] || []).map((dish) =>
+        dish.id === id ? { ...dish, ...updates } : dish
+      ),
+    }));
+  };
+
+  const deleteMenuItem = (id: string) => {
+    setMenuItemsMap((prev) => ({
+      ...prev,
+      [activeRestaurantId]: (prev[activeRestaurantId] || []).filter((dish) => dish.id !== id),
+    }));
+  };
+
+  const batchImportMenuItems = (items: Omit<MenuItem, 'id'>[], conflictResolution: 'keep' | 'overwrite') => {
+    const existing = menuItemsMap[activeRestaurantId] || [];
+    let updated = [...existing];
+    let count = 0;
+
+    items.forEach((newItem) => {
+      const matchIndex = updated.findIndex(
+        (e) => e.name.toLowerCase().trim() === newItem.name.toLowerCase().trim()
+      );
+      if (matchIndex >= 0) {
+        if (conflictResolution === 'overwrite') {
+          updated[matchIndex] = { ...newItem, id: updated[matchIndex].id };
+          count++;
+        }
+      } else {
+        updated.push({ ...newItem, id: `dish_${Date.now()}_${count++}` });
+      }
+    });
+
+    setMenuItemsMap((prev) => ({
+      ...prev,
+      [activeRestaurantId]: updated,
+    }));
+
+    return { importedCount: count };
+  };
+
+  const addReview = (review: Omit<Review, 'id' | 'date' | 'verified'>) => {
+    const newRev: Review = {
+      ...review,
+      id: `rev_${Date.now()}`,
+      date: 'Just now',
+      verified: true,
+    };
+    setReviewsMap((prev) => ({
+      ...prev,
+      [activeRestaurantId]: [newRev, ...(prev[activeRestaurantId] || [])],
+    }));
+    grantCustomerSpin();
+  };
+
+  const submitSocialProof = (data: {
+    customerName: string;
+    customerPhone: string;
+    platform: any;
+    screenshotUrl: string;
+    instagramHandle?: string;
+  }) => {
+    const newSub: SocialSubmission = {
+      id: `soc_${Date.now()}`,
+      restaurantId: activeRestaurantId,
+      customerName: data.customerName,
+      customerPhone: data.customerPhone,
+      platform: data.platform,
+      screenshotUrl: data.screenshotUrl,
+      instagramHandle: data.instagramHandle,
+      hashtags: activeRestaurant.hashtags.join(' '),
+      submittedAt: 'Just now',
+      status: 'pending',
+    };
+    setSocialSubmissionsMap((prev) => ({
+      ...prev,
+      [activeRestaurantId]: [newSub, ...(prev[activeRestaurantId] || [])],
+    }));
+
+    grantCustomerSpin();
+  };
+
+  const approveSocialSubmission = (id: string) => {
+    setSocialSubmissionsMap((prev) => ({
+      ...prev,
+      [activeRestaurantId]: (prev[activeRestaurantId] || []).map((sub) =>
+        sub.id === id ? { ...sub, status: 'approved' } : sub
+      ),
+    }));
+    grantCustomerSpin();
+  };
+
+  const rejectSocialSubmission = (id: string) => {
+    setSocialSubmissionsMap((prev) => ({
+      ...prev,
+      [activeRestaurantId]: (prev[activeRestaurantId] || []).map((sub) =>
+        sub.id === id ? { ...sub, status: 'rejected' } : sub
+      ),
+    }));
+  };
+
+  const updateRewardItem = (id: string, updates: Partial<RewardWheelItem>) => {
+    setRewardItemsMap((prev) => ({
+      ...prev,
+      [activeRestaurantId]: (prev[activeRestaurantId] || []).map((item) =>
+        item.id === id ? { ...item, ...updates } : item
+      ),
+    }));
+  };
+
+  const createOffer = (offer: Omit<Offer, 'id' | 'usedCount'>) => {
+    const newOff: Offer = {
+      ...offer,
+      id: `off_${Date.now()}`,
+      usedCount: 0,
+    };
+    setOffersMap((prev) => ({
+      ...prev,
+      [activeRestaurantId]: [newOff, ...(prev[activeRestaurantId] || [])],
+    }));
+  };
+
+  const toggleOfferActive = (id: string) => {
+    setOffersMap((prev) => ({
+      ...prev,
+      [activeRestaurantId]: (prev[activeRestaurantId] || []).map((off) =>
+        off.id === id ? { ...off, active: !off.active } : off
+      ),
+    }));
+  };
+
+  const addTable = (tableNumber: number) => {
+    const newTable: TableRecord = {
+      tableNumber,
+      restaurantId: activeRestaurantId,
+      qrUrl: `${activeRestaurantSlug}.ensemble.com/t/${tableNumber}`,
+      status: 'available',
+      totalScans: 0,
+      lastScanned: 'Never',
+    };
+    setTablesMap((prev) => ({
+      ...prev,
+      [activeRestaurantId]: [...(prev[activeRestaurantId] || []), newTable].sort((a, b) => a.tableNumber - b.tableNumber),
+    }));
+  };
+
+  const deleteTable = (tableNumber: number) => {
+    setTablesMap((prev) => ({
+      ...prev,
+      [activeRestaurantId]: (prev[activeRestaurantId] || []).filter((t) => t.tableNumber !== tableNumber),
+    }));
+  };
+
+  const toggleTableActive = (tableNumber: number) => {
+    setTablesMap((prev) => ({
+      ...prev,
+      [activeRestaurantId]: (prev[activeRestaurantId] || []).map((t) =>
+        t.tableNumber === tableNumber ? { ...t, status: t.status === 'cleaning' ? 'available' : 'cleaning' } : t
+      ),
+    }));
+  };
+
+  const resetToDefaults = () => {
+    localStorage.clear();
+    setRestaurants(INITIAL_RESTAURANTS);
+    setMenuItemsMap(INITIAL_MENU_ITEMS);
+    setRewardItemsMap(INITIAL_REWARD_ITEMS);
+    setOffersMap(INITIAL_OFFERS);
+    setCustomersMap(INITIAL_CUSTOMERS);
+    setReviewsMap(INITIAL_REVIEWS);
+    setSocialSubmissionsMap(INITIAL_SOCIAL_SUBMISSIONS);
+    setTablesMap(INITIAL_TABLES);
+    setTableSessions(SEED_TABLE_SESSIONS);
+    setOrders(SEED_ORDERS);
+    setCaptainCalls(SEED_CAPTAIN_CALLS);
+    setMasterBillUploads(SEED_BILL_UPLOADS);
+    setUnifiedCoupons(SEED_UNIFIED_COUPONS);
+    setCustomerWallet([]);
+    setCanSpin(true);
+    setUnlockedExtraSpins(0);
+    setActiveRestaurantSlug('heritage');
+    setActiveTable(12);
+    setCustomerSession({
+      name: 'Abhishek Sharma',
+      phone: '+91 98200 11223',
+      isHost: true,
+      tableNumber: 12,
+    });
+    setGeofenceStatus('passed');
+  };
+
+  return (
+    <TenantContext.Provider
+      value={{
+        role,
+        setRole,
+        staffRole,
+        setStaffRole,
+        activeRestaurantSlug,
+        setActiveRestaurantSlug,
+        activeRestaurant,
+        activeTable,
+        setActiveTable,
+        customerViewMode,
+        setCustomerViewMode,
+        customerActiveTab,
+        setCustomerActiveTab,
+
+        restaurants,
+        activeMenuItems,
+        activeRewardItems,
+        activeOffers,
+        activeCustomers,
+        activeReviews,
+        activeSocialSubmissions,
+        activeTables,
+        activeCampaigns,
+
+        customerSession,
+        registerCustomerSession,
+        logoutCustomerSession,
+        geofenceStatus,
+        setGeofenceStatus,
+        requestGeofenceOverride,
+        captainApproveGeofence,
+
+        tableSessions,
+        currentTableSession,
+        joinTableSession,
+        reassignSessionHost,
+
+        captainCalls,
+        callCaptain,
+        acknowledgeCaptainCall,
+        callCooldownRemaining,
+
+        orders,
+        placeCustomerOrder,
+        captainAddOrder,
+        confirmOrder,
+        deliverOrder,
+        cancelOrder,
+        removeOrderItem,
+        askForBill,
+        closeTableTab,
+        resetTable,
+        forceCloseSession,
+
+        unifiedCoupons,
+        customerWallet,
+        canSpin,
+        unlockedExtraSpins,
+        grantCustomerSpin,
+        consumeCustomerSpin,
+        addUnifiedCoupon,
+        deleteCoupon,
+        activateQueuedCoupon,
+        redeemCoupon,
+        addCustomerReward,
+        redeemReward,
+
+        masterBillUploads,
+        uploadBillToMaster,
+        updateBillAuditStatus,
+
+        addRestaurant,
+        updateRestaurant,
+        toggleRestaurantStatus,
+        updateRestaurantPlanFeatures,
+
+        addMenuItem,
+        updateMenuItem,
+        deleteMenuItem,
+        batchImportMenuItems,
+
+        addReview,
+        submitSocialProof,
+        approveSocialSubmission,
+        rejectSocialSubmission,
+
+        updateRewardItem,
+        createOffer,
+        toggleOfferActive,
+
+        addTable,
+        deleteTable,
+        toggleTableActive,
+
+        resetToDefaults,
+      }}
+    >
+      {children}
+    </TenantContext.Provider>
+  );
+};
+
+export const useTenant = () => {
+  const context = useContext(TenantContext);
+  if (!context) {
+    throw new Error('useTenant must be used within a TenantProvider');
+  }
+  return context;
+};

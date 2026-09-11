@@ -1,0 +1,831 @@
+import React, { useState, useEffect } from 'react';
+import { useTenant } from '../../context/TenantContext';
+import {
+  Bell,
+  CheckCircle2,
+  Clock,
+  AlertTriangle,
+  Plus,
+  Trash2,
+  CreditCard,
+  Banknote,
+  RotateCcw,
+  UserCheck,
+  QrCode,
+  Wifi,
+  WifiOff,
+  ChevronRight,
+  Sparkles,
+  Search,
+  UserX,
+  ShieldCheck,
+  Utensils,
+  Eye,
+  X,
+} from 'lucide-react';
+import { TableRecord } from '../../types/tenant';
+import { CaptainOrder, OrderItemEntry } from '../../types/captain';
+
+export const CaptainLayout: React.FC = () => {
+  const {
+    activeRestaurant,
+    activeTables,
+    tableSessions,
+    orders,
+    captainCalls,
+    acknowledgeCaptainCall,
+    confirmOrder,
+    deliverOrder,
+    cancelOrder,
+    removeOrderItem,
+    captainAddOrder,
+    closeTableTab,
+    resetTable,
+    forceCloseSession,
+    reassignSessionHost,
+    activeMenuItems,
+    unifiedCoupons,
+    redeemCoupon,
+  } = useTenant();
+
+  const [selectedTableNumber, setSelectedTableNumber] = useState<number | null>(12);
+  const [isOfflineSimulated, setIsOfflineSimulated] = useState(false);
+  const [filterStatus, setFilterStatus] = useState<'all' | 'occupied' | 'bill_requested' | 'paid_pending_reset'>('all');
+  const [showAddDishModal, setShowAddDishModal] = useState(false);
+  const [showReassignModal, setShowReassignModal] = useState(false);
+  const [showScannerModal, setShowScannerModal] = useState(false);
+  const [scannedCodeInput, setScannedCodeInput] = useState('');
+  const [scanResult, setScanResult] = useState<string | null>(null);
+
+  // Selected table session & orders
+  const activeRestaurantId = activeRestaurant.id;
+  const currentSessions = tableSessions[activeRestaurantId] || [];
+  const selectedSession = currentSessions.find(
+    (s) => s.tableNumber === selectedTableNumber && s.status !== 'closed' && s.status !== 'discarded'
+  );
+  const selectedTableRecord = activeTables.find((t) => t.tableNumber === selectedTableNumber);
+  const tableOrders = orders.filter((o) => o.tableNumber === selectedTableNumber && o.status !== 'cancelled');
+
+  // Prep timer selection state for confirming orders
+  const [selectedPrepMinutes, setSelectedPrepMinutes] = useState<Record<string, 10 | 20 | 30>>({});
+
+  // Ghost Host Reassign Inputs
+  const [reassignName, setReassignName] = useState('');
+  const [reassignPhone, setReassignPhone] = useState('');
+
+  // Manual Captain Order Input
+  const [captainDishSelect, setCaptainDishSelect] = useState(activeMenuItems[0]?.id || '');
+  const [captainDishQty, setCaptainDishQty] = useState(1);
+
+  // Unacknowledged pending calls
+  const pendingCalls = captainCalls.filter((c) => c.status === 'pending');
+
+  // Realtime countdown clock ticker
+  const [currentTime, setCurrentTime] = useState(Date.now());
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  // Charges calculation for the selected table
+  const subtotal = tableOrders.reduce((sum, order) => {
+    return (
+      sum +
+      order.items.reduce((iSum, item) => iSum + item.price * item.quantity, 0)
+    );
+  }, 0);
+
+  const gstRate = activeRestaurant.chargesConfig?.gstPercent || 5;
+  const serviceRate = activeRestaurant.chargesConfig?.serviceChargePercent || 5;
+  const packaging = activeRestaurant.chargesConfig?.packagingFee || 30;
+
+  const gstAmount = Math.round((subtotal * gstRate) / 100);
+  const serviceAmount = Math.round((subtotal * serviceRate) / 100);
+  const totalBill = subtotal > 0 ? subtotal + gstAmount + serviceAmount + packaging : 0;
+
+  // Filtered tables
+  const filteredTables = activeTables.filter((table) => {
+    if (filterStatus === 'all') return true;
+    return table.status === filterStatus;
+  });
+
+  const handleValidateCoupon = (code: string) => {
+    const clean = code.trim().toUpperCase();
+    const found = unifiedCoupons.find(
+      (c) => c.voucherCode.toUpperCase() === clean && c.restaurantId === activeRestaurant.id
+    );
+
+    if (!found) {
+      setScanResult('INVALID_COUPON: Code not found or belongs to another restaurant.');
+      return;
+    }
+    if (found.status === 'redeemed') {
+      setScanResult('ALREADY_REDEEMED: This coupon has already been redeemed.');
+      return;
+    }
+    redeemCoupon(found.id);
+    setScanResult(`SUCCESS: Verified & Redeemed! ${found.rewardLabel} (${found.voucherCode})`);
+  };
+
+  return (
+    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col">
+      {/* Persistent Offline Warning Banner (Section 9) */}
+      {isOfflineSimulated && (
+        <div className="bg-rose-600 text-white px-4 py-2.5 flex items-center justify-between text-xs font-semibold shadow-lg sticky top-0 z-50 animate-pulse">
+          <div className="flex items-center space-x-2">
+            <WifiOff className="w-4 h-4" />
+            <span>You're offline. Live updates paused. Please check Wi-Fi connectivity.</span>
+          </div>
+          <button
+            onClick={() => setIsOfflineSimulated(false)}
+            className="bg-white text-rose-700 px-2 py-0.5 rounded text-[11px] font-bold"
+          >
+            Reconnect
+          </button>
+        </div>
+      )}
+
+      {/* Top Captain Bar */}
+      <header className="bg-slate-900 border-b border-slate-800 px-4 py-3 sticky top-0 z-40">
+        <div className="max-w-7xl mx-auto flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <div className="w-9 h-9 rounded-xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-400 font-bold">
+              👨‍🍳
+            </div>
+            <div>
+              <div className="flex items-center space-x-2">
+                <h1 className="font-bold text-base text-white">Captain Operations Console</h1>
+                <span className="bg-amber-500/10 text-amber-400 text-[10px] px-2 py-0.5 rounded-full border border-amber-500/30 font-semibold">
+                  Section 9: Floor Duty
+                </span>
+              </div>
+              <p className="text-xs text-slate-400">{activeRestaurant.name} • Floor Management</p>
+            </div>
+          </div>
+
+          <div className="flex items-center space-x-2">
+            {/* Coupon Scanner CTA */}
+            <button
+              onClick={() => {
+                setShowScannerModal(true);
+                setScanResult(null);
+              }}
+              className="bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-1.5 rounded-lg text-xs font-semibold border border-slate-700 flex items-center space-x-1.5 transition-colors"
+            >
+              <QrCode className="w-3.5 h-3.5 text-amber-400" />
+              <span>Validate Voucher</span>
+            </button>
+
+            {/* Offline Simulation Toggle */}
+            <button
+              onClick={() => setIsOfflineSimulated(!isOfflineSimulated)}
+              className={`p-1.5 rounded-lg border text-xs transition-colors ${
+                isOfflineSimulated
+                  ? 'bg-rose-500/20 border-rose-500/40 text-rose-400'
+                  : 'bg-slate-800 border-slate-700 text-emerald-400'
+              }`}
+              title="Toggle network connectivity simulation"
+            >
+              {isOfflineSimulated ? <WifiOff className="w-4 h-4" /> : <Wifi className="w-4 h-4" />}
+            </button>
+          </div>
+        </div>
+      </header>
+
+      {/* Call Captain Alert Section (Section 10: Pulsing chime alert) */}
+      {pendingCalls.length > 0 && (
+        <div className="bg-amber-500/15 border-b border-amber-500/30 px-4 py-2.5">
+          <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center space-x-2">
+              <span className="relative flex h-3 w-3">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-3 w-3 bg-amber-500"></span>
+              </span>
+              <Bell className="w-4 h-4 text-amber-400 animate-bounce" />
+              <span className="text-xs font-bold text-amber-300">
+                {pendingCalls.length} Guest Assistance Request{pendingCalls.length > 1 ? 's' : ''}:
+              </span>
+              <div className="flex flex-wrap gap-1.5">
+                {pendingCalls.map((call) => (
+                  <span
+                    key={call.id}
+                    className="bg-amber-500/20 text-amber-200 border border-amber-500/40 px-2 py-0.5 rounded text-[11px] font-bold"
+                  >
+                    Table #{call.tableNumber}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex items-center space-x-2">
+              {pendingCalls.map((call) => (
+                <button
+                  key={call.id}
+                  onClick={() => acknowledgeCaptainCall(call.id)}
+                  className="bg-amber-500 hover:bg-amber-400 text-slate-950 px-2.5 py-1 rounded text-xs font-bold shadow transition-all flex items-center space-x-1"
+                >
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  <span>Attend Table {call.tableNumber}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Main Floor Grid & Table Management */}
+      <div className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
+        {/* Left Side: Table Grid (7 cols) */}
+        <div className="lg:col-span-7 flex flex-col space-y-4">
+          {/* Status Filters */}
+          <div className="flex items-center justify-between bg-slate-900 p-2 rounded-xl border border-slate-800">
+            <div className="flex items-center space-x-1">
+              {(['all', 'occupied', 'bill_requested', 'paid_pending_reset'] as const).map((status) => (
+                <button
+                  key={status}
+                  onClick={() => setFilterStatus(status)}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-semibold capitalize transition-colors ${
+                    filterStatus === status
+                      ? 'bg-amber-500 text-slate-950'
+                      : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                  }`}
+                >
+                  {status.replace(/_/g, ' ')}
+                </button>
+              ))}
+            </div>
+            <span className="text-xs text-slate-400 px-2">Total: {activeTables.length} Tables</span>
+          </div>
+
+          {/* Tables Cards Grid */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+            {filteredTables.map((t) => {
+              const isSelected = selectedTableNumber === t.tableNumber;
+              const hasCall = pendingCalls.some((c) => c.tableNumber === t.tableNumber);
+              const session = currentSessions.find(
+                (s) => s.tableNumber === t.tableNumber && s.status !== 'closed' && s.status !== 'discarded'
+              );
+
+              return (
+                <button
+                  key={t.tableNumber}
+                  onClick={() => setSelectedTableNumber(t.tableNumber)}
+                  className={`p-3 rounded-xl border text-left flex flex-col justify-between h-28 relative transition-all ${
+                    isSelected
+                      ? 'border-amber-500 bg-amber-500/10 ring-2 ring-amber-500/20'
+                      : 'border-slate-800 bg-slate-900/90 hover:border-slate-700'
+                  } ${hasCall ? 'ring-2 ring-amber-400 animate-pulse' : ''}`}
+                >
+                  {/* Top: Table Number & Call Bell */}
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-sm text-white">T-{t.tableNumber}</span>
+                    {hasCall && <Bell className="w-4 h-4 text-amber-400 animate-bounce" />}
+                  </div>
+
+                  {/* Middle: Session Host or Status */}
+                  <div className="min-w-0">
+                    {session ? (
+                      <div>
+                        <p className="text-xs font-semibold text-slate-200 truncate">{session.hostName}</p>
+                        <p className="text-[10px] text-slate-400 truncate">
+                          {session.members.length} Guest{session.members.length > 1 ? 's' : ''}
+                        </p>
+                      </div>
+                    ) : (
+                      <p className="text-[11px] text-slate-500">No active session</p>
+                    )}
+                  </div>
+
+                  {/* Bottom: Status Pill */}
+                  <div className="flex items-center justify-between">
+                    <span
+                      className={`text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider ${
+                        t.status === 'occupied'
+                          ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                          : t.status === 'bill_requested'
+                          ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30 animate-pulse'
+                          : t.status === 'paid_pending_reset'
+                          ? 'bg-purple-500/20 text-purple-400 border border-purple-500/30'
+                          : 'bg-slate-800 text-slate-400'
+                      }`}
+                    >
+                      {t.status.replace(/_/g, ' ')}
+                    </span>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Right Side: Selected Table Details & Active Orders (5 cols) */}
+        <div className="lg:col-span-5 bg-slate-900 border border-slate-800 rounded-2xl p-5 flex flex-col space-y-4">
+          {selectedTableNumber ? (
+            <>
+              {/* Header with Table Number & Session Info */}
+              <div className="flex items-start justify-between border-b border-slate-800 pb-3">
+                <div>
+                  <div className="flex items-center space-x-2">
+                    <h2 className="text-xl font-bold text-white">Table {selectedTableNumber}</h2>
+                    <span
+                      className={`text-[10px] font-bold px-2 py-0.5 rounded-full capitalize ${
+                        selectedTableRecord?.status === 'occupied'
+                          ? 'bg-emerald-500/20 text-emerald-400'
+                          : selectedTableRecord?.status === 'bill_requested'
+                          ? 'bg-rose-500/20 text-rose-400'
+                          : selectedTableRecord?.status === 'paid_pending_reset'
+                          ? 'bg-purple-500/20 text-purple-400'
+                          : 'bg-slate-800 text-slate-400'
+                      }`}
+                    >
+                      {selectedTableRecord?.status.replace(/_/g, ' ')}
+                    </span>
+                  </div>
+                  {selectedSession ? (
+                    <div className="mt-1 flex items-center space-x-2">
+                      <p className="text-xs text-slate-300">
+                        Host: <span className="font-semibold text-white">{selectedSession.hostName}</span> (
+                        {selectedSession.hostPhone})
+                      </p>
+                      <button
+                        onClick={() => {
+                          setReassignName(selectedSession.hostName);
+                          setReassignPhone(selectedSession.hostPhone);
+                          setShowReassignModal(true);
+                        }}
+                        className="text-[10px] text-amber-400 hover:text-amber-300 underline font-medium"
+                      >
+                        Reassign Host
+                      </button>
+                    </div>
+                  ) : (
+                    <p className="text-xs text-slate-500 mt-1">No active diner session</p>
+                  )}
+                </div>
+
+                {/* Manual Captain Addition Button */}
+                <button
+                  onClick={() => setShowAddDishModal(true)}
+                  className="bg-amber-500 hover:bg-amber-400 text-slate-950 px-2.5 py-1.5 rounded-lg text-xs font-bold flex items-center space-x-1 shadow transition-colors"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Add Items</span>
+                </button>
+              </div>
+
+              {/* Multi-Person Joiners List (Section 5) */}
+              {selectedSession && selectedSession.members.length > 1 && (
+                <div className="bg-slate-950 p-3 rounded-xl border border-slate-800">
+                  <p className="text-[11px] font-semibold text-slate-400 mb-1.5">
+                    Table Diners ({selectedSession.members.length}):
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {selectedSession.members.map((m) => (
+                      <span
+                        key={m.id}
+                        className={`text-[10px] px-2 py-0.5 rounded-full border ${
+                          m.isHost
+                            ? 'bg-amber-500/20 text-amber-300 border-amber-500/30 font-bold'
+                            : 'bg-slate-900 text-slate-300 border-slate-700'
+                        }`}
+                      >
+                        {m.name} {m.isHost ? '👑 (Host)' : ''}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Active Orders List with Prep Countdown Timers (Section 7, 9) */}
+              <div className="flex-1 overflow-y-auto space-y-3 pr-1 max-h-[360px]">
+                {tableOrders.length === 0 ? (
+                  <div className="py-8 text-center text-slate-500 text-xs">
+                    No orders placed yet for this table.
+                  </div>
+                ) : (
+                  tableOrders.map((order) => {
+                    // Prep Countdown logic
+                    let isOverdue = false;
+                    let remainingSeconds = 0;
+                    if (order.prepExpiresAt) {
+                      const diff = Math.floor((new Date(order.prepExpiresAt).getTime() - currentTime) / 1000);
+                      if (diff <= 0) {
+                        isOverdue = true;
+                      } else {
+                        remainingSeconds = diff;
+                      }
+                    }
+
+                    return (
+                      <div
+                        key={order.id}
+                        className={`p-3.5 rounded-xl border ${
+                          isOverdue
+                            ? 'bg-rose-950/20 border-rose-500/40'
+                            : 'bg-slate-950/70 border-slate-800'
+                        }`}
+                      >
+                        {/* Order Header */}
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center space-x-2">
+                            <span className="font-bold text-xs text-white">Order #{order.id.slice(-4)}</span>
+                            {/* Visual distinction: Captain Added vs Customer Order (Section 9) */}
+                            <span
+                              className={`text-[10px] px-1.5 py-0.2 rounded font-bold uppercase ${
+                                order.source === 'captain'
+                                  ? 'bg-purple-500/20 text-purple-400 border border-purple-500/30'
+                                  : 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
+                              }`}
+                            >
+                              {order.source === 'captain' ? 'Captain Added' : 'Customer Order'}
+                            </span>
+                          </div>
+
+                          {/* Status Badge */}
+                          <span
+                            className={`text-[10px] font-bold px-2 py-0.5 rounded capitalize ${
+                              order.status === 'received'
+                                ? 'bg-amber-500/20 text-amber-300 animate-pulse'
+                                : order.status === 'preparing'
+                                ? isOverdue
+                                  ? 'bg-rose-500 text-white font-bold animate-bounce'
+                                  : 'bg-blue-500/20 text-blue-300'
+                                : 'bg-emerald-500/20 text-emerald-400'
+                            }`}
+                          >
+                            {order.status}
+                          </span>
+                        </div>
+
+                        {/* Prep Countdown Display (Section 9) */}
+                        {order.status === 'preparing' && (
+                          <div
+                            className={`flex items-center justify-between text-xs px-2.5 py-1.5 rounded-lg mb-2 ${
+                              isOverdue
+                                ? 'bg-rose-600/30 text-rose-200 border border-rose-500/40 font-bold'
+                                : 'bg-slate-900 text-slate-300 border border-slate-800'
+                            }`}
+                          >
+                            <div className="flex items-center space-x-1.5">
+                              <Clock className={`w-3.5 h-3.5 ${isOverdue ? 'text-rose-400 animate-spin' : 'text-blue-400'}`} />
+                              <span>
+                                {isOverdue
+                                  ? '⚠️ OVERDUE: Customer notified of heavy kitchen load'
+                                  : `Kitchen Timer: ${Math.floor(remainingSeconds / 60)}m ${remainingSeconds % 60}s remaining`}
+                              </span>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Order Items */}
+                        <div className="space-y-1.5">
+                          {order.items.map((item) => (
+                            <div
+                              key={item.id}
+                              className="flex items-center justify-between text-xs py-1 border-b border-slate-900 last:border-0"
+                            >
+                              <div className="flex items-center space-x-2">
+                                <span className="font-semibold text-slate-200">
+                                  {item.quantity}x {item.name}
+                                </span>
+                                {item.source === 'captain' && (
+                                  <span className="text-[9px] text-purple-400 font-bold bg-purple-950 px-1 rounded">
+                                    Captain
+                                  </span>
+                                )}
+                              </div>
+                              <div className="flex items-center space-x-2">
+                                <span className="text-slate-400">₹{item.price * item.quantity}</span>
+                                {/* Out of stock mid-order removal (Section 9) */}
+                                <button
+                                  onClick={() => removeOrderItem(order.id, item.id)}
+                                  className="text-slate-500 hover:text-rose-400 transition-colors p-0.5"
+                                  title="Remove item (out of stock)"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* Order Confirmation Actions (Waiter Cross-Confirmation, Section 9) */}
+                        <div className="mt-3 flex items-center justify-between border-t border-slate-800 pt-2">
+                          {order.status === 'received' ? (
+                            <div className="flex items-center space-x-2 w-full">
+                              <select
+                                value={selectedPrepMinutes[order.id] || 20}
+                                onChange={(e) =>
+                                  setSelectedPrepMinutes({
+                                    ...selectedPrepMinutes,
+                                    [order.id]: Number(e.target.value) as 10 | 20 | 30,
+                                  })
+                                }
+                                className="bg-slate-900 text-slate-200 border border-slate-700 text-xs rounded px-2 py-1"
+                              >
+                                <option value={10}>10 Min Prep</option>
+                                <option value={20}>20 Min Prep</option>
+                                <option value={30}>30 Min Prep</option>
+                              </select>
+                              <button
+                                onClick={() =>
+                                  confirmOrder(order.id, selectedPrepMinutes[order.id] || 20)
+                                }
+                                className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold py-1 px-3 rounded shadow transition-colors flex items-center justify-center space-x-1"
+                              >
+                                <CheckCircle2 className="w-3.5 h-3.5" />
+                                <span>Cross-Confirm & Start Kitchen</span>
+                              </button>
+                            </div>
+                          ) : order.status === 'preparing' ? (
+                            <button
+                              onClick={() => deliverOrder(order.id)}
+                              className="w-full bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold py-1 px-3 rounded shadow transition-colors flex items-center justify-center space-x-1"
+                            >
+                              <CheckCircle2 className="w-3.5 h-3.5" />
+                              <span>Mark Order Delivered</span>
+                            </button>
+                          ) : null}
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+
+              {/* Running Tab Summary (Section 7: GST, Service Charge, Packaging) */}
+              <div className="bg-slate-950 p-3.5 rounded-xl border border-slate-800 space-y-1.5 text-xs">
+                <div className="flex justify-between text-slate-400">
+                  <span>Subtotal</span>
+                  <span>₹{subtotal}</span>
+                </div>
+                <div className="flex justify-between text-slate-400">
+                  <span>GST ({gstRate}%)</span>
+                  <span>₹{gstAmount}</span>
+                </div>
+                <div className="flex justify-between text-slate-400">
+                  <span>Service Charge ({serviceRate}%)</span>
+                  <span>₹{serviceAmount}</span>
+                </div>
+                {packaging > 0 && (
+                  <div className="flex justify-between text-slate-400">
+                    <span>Packaging Fee</span>
+                    <span>₹{packaging}</span>
+                  </div>
+                )}
+                <div className="flex justify-between text-sm font-bold text-white border-t border-slate-800 pt-1.5">
+                  <span>Current Total</span>
+                  <span className="text-amber-400">₹{totalBill}</span>
+                </div>
+              </div>
+
+              {/* Payment & Table Reset Actions (Section 8) */}
+              <div className="space-y-2 pt-2 border-t border-slate-800">
+                {selectedTableRecord?.status === 'bill_requested' || selectedTableRecord?.status === 'occupied' ? (
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      onClick={() => closeTableTab(selectedTableNumber, 'cash')}
+                      className="bg-emerald-600 hover:bg-emerald-500 text-white py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center space-x-1.5 shadow"
+                    >
+                      <Banknote className="w-4 h-4" />
+                      <span>Paid via Cash</span>
+                    </button>
+                    <button
+                      onClick={() => closeTableTab(selectedTableNumber, 'online')}
+                      className="bg-indigo-600 hover:bg-indigo-500 text-white py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center space-x-1.5 shadow"
+                    >
+                      <CreditCard className="w-4 h-4" />
+                      <span>Paid via Online</span>
+                    </button>
+                  </div>
+                ) : selectedTableRecord?.status === 'paid_pending_reset' ? (
+                  <button
+                    onClick={() => resetTable(selectedTableNumber)}
+                    className="w-full bg-amber-500 hover:bg-amber-400 text-slate-950 py-2.5 px-4 rounded-xl text-xs font-black flex items-center justify-center space-x-2 shadow-lg transition-transform active:scale-95"
+                  >
+                    <RotateCcw className="w-4 h-4" />
+                    <span>Reset Table (Sanitized & Ready)</span>
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => forceCloseSession(selectedTableNumber)}
+                    className="w-full bg-slate-800 hover:bg-slate-700 text-slate-300 py-2 rounded-xl text-xs font-semibold"
+                  >
+                    Force Reset / Clear Table
+                  </button>
+                )}
+              </div>
+            </>
+          ) : (
+            <div className="py-16 text-center text-slate-500 text-xs">
+              Select a table from the floor grid to view live orders and tab details.
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Manual Add Dish Modal (Captain Oral Addition) */}
+      {showAddDishModal && selectedTableNumber && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-5 space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-base font-bold text-white">Manual Captain Order (T-{selectedTableNumber})</h3>
+              <button onClick={() => setShowAddDishModal(false)} className="text-slate-400 hover:text-white">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-400">
+              Direct table additions will be visually flagged as "Captain Added".
+            </p>
+
+            <div>
+              <label className="text-xs text-slate-300 font-semibold mb-1 block">Select Dish</label>
+              <select
+                value={captainDishSelect}
+                onChange={(e) => setCaptainDishSelect(e.target.value)}
+                className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white"
+              >
+                {activeMenuItems.map((dish) => (
+                  <option key={dish.id} value={dish.id}>
+                    {dish.name} (₹{dish.price})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="text-xs text-slate-300 font-semibold mb-1 block">Quantity</label>
+              <input
+                type="number"
+                min={1}
+                max={10}
+                value={captainDishQty}
+                onChange={(e) => setCaptainDishQty(Number(e.target.value))}
+                className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white"
+              />
+            </div>
+
+            <div className="flex items-center space-x-2 pt-2">
+              <button
+                onClick={() => setShowAddDishModal(false)}
+                className="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs py-2 rounded-lg"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  const dish = activeMenuItems.find((d) => d.id === captainDishSelect);
+                  if (dish) {
+                    captainAddOrder(selectedTableNumber, [
+                      {
+                        menuItemId: dish.id,
+                        name: dish.name,
+                        price: dish.price,
+                        quantity: captainDishQty,
+                      },
+                    ]);
+                  }
+                  setShowAddDishModal(false);
+                }}
+                className="flex-1 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs py-2 rounded-lg"
+              >
+                Add to Live Tab
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Ghost Host Reassign Modal (Section 5) */}
+      {showReassignModal && selectedTableNumber && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-5 space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-base font-bold text-white">Reassign Host (Table {selectedTableNumber})</h3>
+              <button onClick={() => setShowReassignModal(false)} className="text-slate-400 hover:text-white">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-400">
+              If original scanner left early or was a ghost scan, verify the diner is physically present at the table and enter their credentials.
+            </p>
+
+            <div>
+              <label className="text-xs text-slate-300 font-semibold mb-1 block">Present Diner Name</label>
+              <input
+                type="text"
+                value={reassignName}
+                onChange={(e) => setReassignName(e.target.value)}
+                placeholder="e.g. Pooja Verma"
+                className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white"
+              />
+            </div>
+
+            <div>
+              <label className="text-xs text-slate-300 font-semibold mb-1 block">Present Diner Phone Number</label>
+              <input
+                type="text"
+                value={reassignPhone}
+                onChange={(e) => setReassignPhone(e.target.value)}
+                placeholder="e.g. +91 98200 44556"
+                className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white"
+              />
+            </div>
+
+            <div className="flex items-center space-x-2 pt-2">
+              <button
+                onClick={() => setShowReassignModal(false)}
+                className="flex-1 bg-slate-800 text-slate-300 text-xs py-2 rounded-lg"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  if (reassignName && reassignPhone) {
+                    reassignSessionHost(selectedTableNumber, reassignName, reassignPhone);
+                    setShowReassignModal(false);
+                  }
+                }}
+                className="flex-1 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs py-2 rounded-lg"
+              >
+                Confirm Reassignment
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Offer / Coupon QR Scanner Modal (Section 11) */}
+      {showScannerModal && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-5 space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <QrCode className="w-5 h-5 text-amber-400" />
+                <h3 className="text-base font-bold text-white">Voucher Redemption Scanner</h3>
+              </div>
+              <button onClick={() => setShowScannerModal(false)} className="text-slate-400 hover:text-white">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-400">
+              Enforces tenant isolation: Vouchers from other restaurants will be rejected immediately.
+            </p>
+
+            <div>
+              <label className="text-xs text-slate-300 font-semibold mb-1 block">Enter or Scan Voucher Code</label>
+              <div className="flex space-x-2">
+                <input
+                  type="text"
+                  value={scannedCodeInput}
+                  onChange={(e) => setScannedCodeInput(e.target.value)}
+                  placeholder="e.g. HRTG-8F42K or HRTG-WELCOME10"
+                  className="flex-1 bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white uppercase font-mono"
+                />
+                <button
+                  onClick={() => handleValidateCoupon(scannedCodeInput)}
+                  className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold px-3 py-2 rounded-lg text-xs"
+                >
+                  Verify
+                </button>
+              </div>
+            </div>
+
+            {scanResult && (
+              <div
+                className={`p-3 rounded-xl text-xs font-semibold ${
+                  scanResult.startsWith('SUCCESS')
+                    ? 'bg-emerald-950/40 text-emerald-300 border border-emerald-500/40'
+                    : 'bg-rose-950/40 text-rose-300 border border-rose-500/40'
+                }`}
+              >
+                {scanResult}
+              </div>
+            )}
+
+            <div className="bg-slate-950 p-3 rounded-xl border border-slate-800">
+              <p className="text-[11px] font-semibold text-slate-400 mb-1">Quick Sample Codes for Testing:</p>
+              <div className="flex flex-wrap gap-1.5">
+                {unifiedCoupons.slice(0, 3).map((c) => (
+                  <button
+                    key={c.id}
+                    onClick={() => {
+                      setScannedCodeInput(c.voucherCode);
+                      handleValidateCoupon(c.voucherCode);
+                    }}
+                    className="text-[10px] font-mono bg-slate-900 hover:bg-slate-800 text-slate-200 px-2 py-0.5 rounded border border-slate-700"
+                  >
+                    {c.voucherCode} ({c.rewardLabel.slice(0, 15)})
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
