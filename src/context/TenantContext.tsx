@@ -608,18 +608,39 @@ export const TenantProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     }
     return merged;
   });
-  const [menuItemsMap, setMenuItemsMap] = useState<Record<string, MenuItem[]>>(() =>
-    loadState(STORAGE_KEYS.MENU, INITIAL_MENU_ITEMS)
-  );
-  const [rewardItemsMap, setRewardItemsMap] = useState<Record<string, RewardWheelItem[]>>(() =>
-    loadState(STORAGE_KEYS.REWARDS, INITIAL_REWARD_ITEMS)
-  );
+  const [menuItemsMap, setMenuItemsMap] = useState<Record<string, MenuItem[]>>(() => {
+    const saved = loadState<Record<string, MenuItem[]>>(STORAGE_KEYS.MENU, INITIAL_MENU_ITEMS);
+    const merged = { ...INITIAL_MENU_ITEMS, ...saved };
+    for (const [rId, items] of Object.entries(INITIAL_MENU_ITEMS)) {
+      if (!merged[rId] || merged[rId].length === 0) {
+        merged[rId] = items;
+      }
+    }
+    return merged;
+  });
+  const [rewardItemsMap, setRewardItemsMap] = useState<Record<string, RewardWheelItem[]>>(() => {
+    const saved = loadState<Record<string, RewardWheelItem[]>>(STORAGE_KEYS.REWARDS, INITIAL_REWARD_ITEMS);
+    const merged = { ...INITIAL_REWARD_ITEMS, ...saved };
+    for (const [rId, items] of Object.entries(INITIAL_REWARD_ITEMS)) {
+      if (!merged[rId] || merged[rId].length === 0) {
+        merged[rId] = items;
+      }
+    }
+    return merged;
+  });
   const [offersMap, setOffersMap] = useState<Record<string, Offer[]>>(() =>
     loadState(STORAGE_KEYS.OFFERS, INITIAL_OFFERS)
   );
-  const [customersMap, setCustomersMap] = useState<Record<string, Customer[]>>(() =>
-    loadState(STORAGE_KEYS.CUSTOMERS, INITIAL_CUSTOMERS)
-  );
+  const [customersMap, setCustomersMap] = useState<Record<string, Customer[]>>(() => {
+    const saved = loadState<Record<string, Customer[]>>(STORAGE_KEYS.CUSTOMERS, INITIAL_CUSTOMERS);
+    const merged = { ...INITIAL_CUSTOMERS, ...saved };
+    for (const [rId, custs] of Object.entries(INITIAL_CUSTOMERS)) {
+      if (!merged[rId] || merged[rId].length === 0) {
+        merged[rId] = custs;
+      }
+    }
+    return merged;
+  });
   const [reviewsMap, setReviewsMap] = useState<Record<string, Review[]>>(() =>
     loadState(STORAGE_KEYS.REVIEWS, INITIAL_REVIEWS)
   );
@@ -797,10 +818,51 @@ export const TenantProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     restaurants.find((r) => r.slug === activeRestaurantSlug) || restaurants[0];
   const activeRestaurantId = activeRestaurant.id;
 
-  const activeMenuItems = menuItemsMap[activeRestaurantId] || [];
-  const activeRewardItems = rewardItemsMap[activeRestaurantId] || [];
+  const activeMenuItems = (() => {
+    if (menuItemsMap[activeRestaurantId] && menuItemsMap[activeRestaurantId].length > 0) {
+      return menuItemsMap[activeRestaurantId];
+    }
+    const altRestId = activeRestaurantId.startsWith('rest_')
+      ? activeRestaurantId.replace('rest_', '')
+      : `rest_${activeRestaurantId}`;
+    if (menuItemsMap[altRestId] && menuItemsMap[altRestId].length > 0) {
+      return menuItemsMap[altRestId];
+    }
+    const slugKey = activeRestaurant.slug ? `rest_${activeRestaurant.slug}` : '';
+    if (slugKey && menuItemsMap[slugKey] && menuItemsMap[slugKey].length > 0) {
+      return menuItemsMap[slugKey];
+    }
+    if (activeRestaurant.slug && menuItemsMap[activeRestaurant.slug] && menuItemsMap[activeRestaurant.slug].length > 0) {
+      return menuItemsMap[activeRestaurant.slug];
+    }
+    return (
+      INITIAL_MENU_ITEMS[activeRestaurantId] ||
+      (slugKey ? INITIAL_MENU_ITEMS[slugKey] : undefined) ||
+      INITIAL_MENU_ITEMS['rest_demo'] ||
+      INITIAL_MENU_ITEMS['rest_heritage'] ||
+      []
+    );
+  })();
+
+  const activeRewardItems = (() => {
+    if (rewardItemsMap[activeRestaurantId] && rewardItemsMap[activeRestaurantId].length > 0) {
+      return rewardItemsMap[activeRestaurantId];
+    }
+    const slugKey = activeRestaurant.slug ? `rest_${activeRestaurant.slug}` : '';
+    if (slugKey && rewardItemsMap[slugKey] && rewardItemsMap[slugKey].length > 0) {
+      return rewardItemsMap[slugKey];
+    }
+    return (
+      INITIAL_REWARD_ITEMS[activeRestaurantId] ||
+      (slugKey ? INITIAL_REWARD_ITEMS[slugKey] : undefined) ||
+      INITIAL_REWARD_ITEMS['rest_demo'] ||
+      INITIAL_REWARD_ITEMS['rest_heritage'] ||
+      []
+    );
+  })();
+
   const activeOffers = offersMap[activeRestaurantId] || [];
-  const activeCustomers = customersMap[activeRestaurantId] || [];
+  const activeCustomers = customersMap[activeRestaurantId] || (activeRestaurant.slug ? customersMap[`rest_${activeRestaurant.slug}`] : undefined) || [];
   const activeReviews = reviewsMap[activeRestaurantId] || [];
   const activeSocialSubmissions = socialSubmissionsMap[activeRestaurantId] || [];
   const activeTables = tablesMap[activeRestaurantId] || [];
@@ -1328,6 +1390,63 @@ export const TenantProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       ),
     }));
 
+    // Record or update customer in customers directory
+    setCustomersMap((prev) => {
+      const list = prev[activeRestaurantId] || [];
+      const cleanDigits = (p: string) => (p || '').replace(/\D/g, '').slice(-10);
+      const userClean = cleanDigits(finalPhone);
+      const todayDate = new Date().toISOString().split('T')[0];
+      const todayFormatted = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+
+      let existingIdx = -1;
+      if (userClean && userClean.length >= 10) {
+        existingIdx = list.findIndex((c) => cleanDigits(c.phone) === userClean);
+      } else if (finalName && !finalName.startsWith('Walk-in Guest')) {
+        existingIdx = list.findIndex((c) => c.name.toLowerCase() === finalName.toLowerCase());
+      }
+
+      if (existingIdx >= 0) {
+        const copy = [...list];
+        const newVisits = (copy[existingIdx].visits || 1) + 1;
+        copy[existingIdx] = {
+          ...copy[existingIdx],
+          name: finalName && !finalName.startsWith('Walk-in') ? finalName : copy[existingIdx].name,
+          phone: finalPhone !== 'Offline Walk-in' ? finalPhone : copy[existingIdx].phone,
+          tableSize: guestCount,
+          partySize: guestCount,
+          visits: newVisits,
+          lastVisit: todayFormatted,
+          lastVisitDate: todayDate,
+          lastVisitTimestamp: Date.now(),
+          source: 'manual_assignment',
+          tags: Array.from(new Set([...copy[existingIdx].tags, 'Walk-in', `Table ${tableNumber}`])),
+        };
+        return { ...prev, [activeRestaurantId]: copy };
+      } else {
+        const newCust: Customer = {
+          id: `cust_${Date.now()}`,
+          restaurantId: activeRestaurantId,
+          name: finalName,
+          phone: finalPhone,
+          tableSize: guestCount,
+          partySize: guestCount,
+          visits: 1,
+          totalSpend: 0,
+          averageBill: 0,
+          reviewsCount: 0,
+          rewardsRedeemed: 0,
+          favoriteDishes: [],
+          engagement: { instagram: false, whatsapp: finalPhone !== 'Offline Walk-in' },
+          tags: ['Walk-in', `Table ${tableNumber}`, `Party of ${guestCount}`],
+          lastVisit: todayFormatted,
+          lastVisitDate: todayDate,
+          lastVisitTimestamp: Date.now(),
+          source: 'manual_assignment',
+        };
+        return { ...prev, [activeRestaurantId]: [newCust, ...list] };
+      }
+    });
+
     if (activeRestaurant?.slug) {
       realtimeHub.publish(activeRestaurant.slug, 'SESSION_CREATED', activeRestaurantId, {
         hostName: finalName,
@@ -1433,48 +1552,73 @@ export const TenantProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     const guestName = explicitName || customerSession?.name || targetSession?.hostName || `Guest (Table ${tableNumber})`;
     const guestPhone = explicitPhone || customerSession?.phone || targetSession?.hostPhone || '';
 
-    if (guestPhone && guestPhone !== 'Staff Added') {
-      setCustomersMap((prev) => {
-        const list = prev[activeRestaurantId] || [];
-        const cleanDigits = (p: string) => (p || '').replace(/\D/g, '').slice(-10);
-        const userClean = cleanDigits(guestPhone);
-        const existingIdx = list.findIndex((c) => cleanDigits(c.phone) === userClean);
-        if (existingIdx >= 0) {
-          const copy = [...list];
-          const newVisits = (copy[existingIdx].visits || 1) + 1;
-          const newTotalSpend = (copy[existingIdx].totalSpend || 0) + orderTotal;
-          copy[existingIdx] = {
-            ...copy[existingIdx],
-            name: guestName && !guestName.startsWith('Guest') ? guestName : copy[existingIdx].name,
-            totalSpend: newTotalSpend,
-            lastVisit: 'Today',
-            visits: newVisits,
-            averageBill: Math.round(newTotalSpend / newVisits),
-          };
-          return { ...prev, [activeRestaurantId]: copy };
-        } else {
-          const newCust: Customer = {
-            id: `cust_${Date.now()}`,
-            restaurantId: activeRestaurantId,
-            name: guestName,
-            phone: guestPhone,
-            totalSpend: orderTotal,
-            visits: 1,
-            averageBill: orderTotal,
-            reviewsCount: 0,
-            rewardsRedeemed: 0,
-            favoriteDishes: itemNames.slice(0, 2),
-            engagement: {
-              instagram: false,
-              whatsapp: true,
-            },
-            tags: [`Table ${tableNumber}`],
-            lastVisit: 'Today',
-          };
-          return { ...prev, [activeRestaurantId]: [newCust, ...list] };
-        }
-      });
-    }
+    const resolvedPhone = (guestPhone && guestPhone !== 'Staff Added')
+      ? guestPhone
+      : (targetSession?.hostPhone && targetSession.hostPhone !== 'Offline Walk-in' ? targetSession.hostPhone : '');
+    const partySize = targetSession?.members?.length || 2;
+    const isManual = targetSession?.id?.includes('manual') || explicitPhone === 'Staff Added';
+    const todayFormatted = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+
+    setCustomersMap((prev) => {
+      const list = prev[activeRestaurantId] || [];
+      const cleanDigits = (p: string) => (p || '').replace(/\D/g, '').slice(-10);
+      const userClean = cleanDigits(resolvedPhone);
+
+      let existingIdx = -1;
+      if (userClean && userClean.length >= 10) {
+        existingIdx = list.findIndex((c) => cleanDigits(c.phone) === userClean);
+      } else if (guestName && !guestName.startsWith('Guest')) {
+        existingIdx = list.findIndex((c) => c.name.toLowerCase() === guestName.toLowerCase());
+      }
+
+      if (existingIdx >= 0) {
+        const copy = [...list];
+        const newVisits = (copy[existingIdx].visits || 1) + 1;
+        const newTotalSpend = (copy[existingIdx].totalSpend || 0) + orderTotal;
+        copy[existingIdx] = {
+          ...copy[existingIdx],
+          name: guestName && !guestName.startsWith('Guest') ? guestName : copy[existingIdx].name,
+          phone: resolvedPhone || copy[existingIdx].phone,
+          tableSize: partySize,
+          partySize: partySize,
+          totalSpend: newTotalSpend,
+          lastVisit: todayFormatted,
+          lastVisitDate: todayDate,
+          lastVisitTimestamp: Date.now(),
+          visits: newVisits,
+          averageBill: Math.round(newTotalSpend / newVisits),
+          source: copy[existingIdx].source || (isManual ? 'manual_assignment' : 'qr_scan'),
+          favoriteDishes: Array.from(new Set([...(copy[existingIdx].favoriteDishes || []), ...itemNames])).slice(0, 3),
+        };
+        return { ...prev, [activeRestaurantId]: copy };
+      } else if (resolvedPhone || (guestName && !guestName.startsWith('Guest'))) {
+        const newCust: Customer = {
+          id: `cust_${Date.now()}`,
+          restaurantId: activeRestaurantId,
+          name: guestName,
+          phone: resolvedPhone || `Table ${tableNumber} Guest`,
+          tableSize: partySize,
+          partySize: partySize,
+          totalSpend: orderTotal,
+          visits: 1,
+          averageBill: orderTotal,
+          reviewsCount: 0,
+          rewardsRedeemed: 0,
+          favoriteDishes: itemNames.slice(0, 2),
+          engagement: {
+            instagram: false,
+            whatsapp: Boolean(resolvedPhone),
+          },
+          tags: [`Table ${tableNumber}`, isManual ? 'Walk-in' : 'QR Diner'],
+          lastVisit: todayFormatted,
+          lastVisitDate: todayDate,
+          lastVisitTimestamp: Date.now(),
+          source: isManual ? 'manual_assignment' : 'qr_scan',
+        };
+        return { ...prev, [activeRestaurantId]: [newCust, ...list] };
+      }
+      return prev;
+    });
   };
 
   // Section 6 & 7 & 9: Ordering & Tab Management

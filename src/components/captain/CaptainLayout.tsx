@@ -455,6 +455,8 @@ export const CaptainLayout: React.FC = () => {
                     onClick={() => {
                       setStagedItems({});
                       setMenuSearch('');
+                      setMenuSelectedCat('All');
+                      setMenuVegOnly(false);
                       setShowAddDishModal(true);
                     }}
                     className="bg-amber-500 hover:bg-amber-400 text-slate-950 px-2.5 py-1.5 rounded-lg text-xs font-bold flex items-center space-x-1 shadow transition-colors"
@@ -839,14 +841,34 @@ export const CaptainLayout: React.FC = () => {
 
             {/* Dishes List */}
             <div className="flex-1 overflow-y-auto p-3 space-y-2">
-              {activeMenuItems
-                .filter((dish) => {
+              {(() => {
+                const displayDishes = activeMenuItems.filter((dish) => {
                   const matchesCat = menuSelectedCat === 'All' || (dish.category || 'Mains').toLowerCase() === menuSelectedCat.toLowerCase();
                   const matchesSearch = !menuSearch || dish.name.toLowerCase().includes(menuSearch.toLowerCase());
                   const matchesVeg = !menuVegOnly || dish.isVeg;
                   return matchesCat && matchesSearch && matchesVeg;
-                })
-                .map((dish) => {
+                });
+
+                if (displayDishes.length === 0) {
+                  return (
+                    <div className="py-12 text-center text-slate-400 space-y-2">
+                      <Utensils className="w-8 h-8 mx-auto text-slate-600" />
+                      <p className="text-xs font-semibold">No dishes found matching your criteria</p>
+                      <button
+                        onClick={() => {
+                          setMenuSelectedCat('All');
+                          setMenuSearch('');
+                          setMenuVegOnly(false);
+                        }}
+                        className="text-amber-400 text-xs underline font-bold"
+                      >
+                        Reset Filters
+                      </button>
+                    </div>
+                  );
+                }
+
+                return displayDishes.map((dish) => {
                   const qty = stagedItems[dish.id] || 0;
                   return (
                     <div
@@ -949,7 +971,8 @@ export const CaptainLayout: React.FC = () => {
                       </div>
                     </div>
                   );
-                })}
+                });
+              })()}
             </div>
 
             {/* Bottom Bar */}
@@ -1109,6 +1132,9 @@ export const CaptainLayout: React.FC = () => {
                   );
                   setShowWalkinModal(false);
                   setStagedItems({});
+                  setMenuSelectedCat('All');
+                  setMenuSearch('');
+                  setMenuVegOnly(false);
                   setShowAddDishModal(true);
                 }}
                 className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs py-2.5 rounded-xl shadow transition active:scale-95 flex items-center justify-center space-x-1"

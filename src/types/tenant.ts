@@ -111,6 +111,11 @@ export interface Customer {
   tags: string[];
   birthday?: string;
   anniversary?: string;
+  tableSize?: number;
+  partySize?: number;
+  lastVisitDate?: string;
+  lastVisitTimestamp?: number;
+  source?: 'qr_scan' | 'manual_assignment';
 }
 
 export interface Review {
@@ -144,6 +149,7 @@ export interface RewardWheelItem {
   textColor: string;
   active: boolean;
   expiryDays: number;
+  minOrderAmount?: number; // e.g. 1000 for "5% off on above 1000"
 }
 
 // Unified 2-Coupon Model (Section 3)

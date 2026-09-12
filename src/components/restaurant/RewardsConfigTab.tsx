@@ -50,6 +50,7 @@ export const RewardsConfigTab: React.FC = () => {
   const [formDescription, setFormDescription] = useState<string>('');
   const [formColor, setFormColor] = useState<string>(activeRestaurant.branding.primaryColor || '#162c21');
   const [formExpiryDays, setFormExpiryDays] = useState<number>(7);
+  const [formMinOrderAmount, setFormMinOrderAmount] = useState<number>(0);
 
   const primaryColor = activeRestaurant.branding.primaryColor;
   const secondaryColor = activeRestaurant.branding.secondaryColor;
@@ -115,6 +116,7 @@ export const RewardsConfigTab: React.FC = () => {
     setFormDescription('Exclusive dining discount voucher');
     setFormColor(PRESET_COLORS[items.length % PRESET_COLORS.length]);
     setFormExpiryDays(7);
+    setFormMinOrderAmount(0);
     setIsModalOpen(true);
   };
 
@@ -127,6 +129,7 @@ export const RewardsConfigTab: React.FC = () => {
     setFormDescription(item.description);
     setFormColor(item.color);
     setFormExpiryDays(item.expiryDays);
+    setFormMinOrderAmount(item.minOrderAmount || 0);
     setIsModalOpen(true);
   };
 
@@ -147,6 +150,7 @@ export const RewardsConfigTab: React.FC = () => {
               description: formDescription.trim(),
               color: formColor,
               expiryDays: Number(formExpiryDays),
+              minOrderAmount: Number(formMinOrderAmount) > 0 ? Number(formMinOrderAmount) : undefined,
             }
           : item
       );
@@ -165,6 +169,7 @@ export const RewardsConfigTab: React.FC = () => {
         textColor: '#ffffff',
         active: true,
         expiryDays: Number(formExpiryDays),
+        minOrderAmount: Number(formMinOrderAmount) > 0 ? Number(formMinOrderAmount) : undefined,
       };
 
       const withNew = [...items, newItem];
@@ -469,6 +474,11 @@ export const RewardsConfigTab: React.FC = () => {
                     ? 'Complimentary Item'
                     : 'Try Again'}
                 </span>
+                {item.minOrderAmount && item.minOrderAmount > 0 ? (
+                  <span className="text-[9px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded-md inline-block mt-1">
+                    Min Bill ₹{item.minOrderAmount}
+                  </span>
+                ) : null}
               </div>
             </div>
           </div>
@@ -499,7 +509,43 @@ export const RewardsConfigTab: React.FC = () => {
             </div>
 
             {/* Modal Form */}
-            <form onSubmit={handleSaveModal} className="p-6 space-y-4 text-xs">
+            <form onSubmit={handleSaveModal} className="p-6 space-y-4 text-xs max-h-[80vh] overflow-y-auto">
+              {/* Quick Preset Templates */}
+              {!editingItemId && (
+                <div className="bg-slate-50 p-3 rounded-2xl border border-slate-200/80 space-y-1.5">
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
+                    Quick Preset Ideas (1-Click Fill)
+                  </span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {[
+                      { label: 'Free Dessert', type: 'free_item' as const, val: 250, desc: 'Complimentary chef special dessert with any meal', min: 0 },
+                      { label: '5% OFF above ₹1000', type: 'percentage' as const, val: 5, desc: '5% discount on dining bills above ₹1,000', min: 1000 },
+                      { label: '10% OFF Welcome', type: 'percentage' as const, val: 10, desc: '10% instant discount on total bill', min: 500 },
+                      { label: 'Free Craft Mocktail', type: 'free_item' as const, val: 180, desc: 'Complimentary mocktail or drink of choice', min: 0 },
+                      { label: '₹150 Flat Discount', type: 'fixed' as const, val: 150, desc: 'Flat ₹150 off on orders above ₹800', min: 800 },
+                      { label: '15% OFF Return Feast', type: 'percentage' as const, val: 15, desc: '15% off on your next visit', min: 1200 },
+                      { label: 'Free Starter Appetizer', type: 'free_item' as const, val: 350, desc: 'Complimentary starter with main course', min: 600 },
+                      { label: 'Better Luck Next Time', type: 'no_luck' as const, val: 0, desc: 'Try your luck again on your next feast!', min: 0 },
+                    ].map((preset, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => {
+                          setFormLabel(preset.label);
+                          setFormType(preset.type);
+                          setFormValue(preset.val);
+                          setFormDescription(preset.desc);
+                          setFormMinOrderAmount(preset.min);
+                        }}
+                        className="px-2 py-1 bg-white hover:bg-amber-50 hover:border-amber-300 text-slate-700 text-[11px] font-semibold rounded-lg border border-slate-200 shadow-xs transition"
+                      >
+                        + {preset.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* Offer Name */}
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">
@@ -508,7 +554,7 @@ export const RewardsConfigTab: React.FC = () => {
                 <input
                   type="text"
                   required
-                  placeholder="e.g. 15% OFF Royal Feast, Free Dessert"
+                  placeholder="e.g. Free Dessert, 5% OFF on above 1000"
                   value={formLabel}
                   onChange={(e) => setFormLabel(e.target.value)}
                   className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-slate-400 font-medium text-slate-900"
@@ -534,22 +580,40 @@ export const RewardsConfigTab: React.FC = () => {
 
               {/* Offer Value */}
               {formType !== 'no_luck' && (
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
-                    {formType === 'percentage'
-                      ? 'Discount Percentage (%)'
-                      : formType === 'fixed'
-                      ? 'Discount Amount (₹)'
-                      : 'Approximate Item Value (₹)'}
-                  </label>
-                  <input
-                    type="number"
-                    min={1}
-                    max={formType === 'percentage' ? 100 : 5000}
-                    value={formValue}
-                    onChange={(e) => setFormValue(Number(e.target.value))}
-                    className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-slate-400 font-medium text-slate-900"
-                  />
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                      {formType === 'percentage'
+                        ? 'Discount (%)'
+                        : formType === 'fixed'
+                        ? 'Discount (₹)'
+                        : 'Approx Value (₹)'}
+                    </label>
+                    <input
+                      type="number"
+                      min={1}
+                      max={formType === 'percentage' ? 100 : 5000}
+                      value={formValue}
+                      onChange={(e) => setFormValue(Number(e.target.value))}
+                      className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-slate-400 font-medium text-slate-900"
+                    />
+                  </div>
+
+                  {/* Minimum Order Value */}
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                      Min Bill Amount (₹)
+                    </label>
+                    <input
+                      type="number"
+                      min={0}
+                      step={50}
+                      placeholder="0 = Any bill"
+                      value={formMinOrderAmount || ''}
+                      onChange={(e) => setFormMinOrderAmount(Number(e.target.value))}
+                      className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-slate-400 font-medium text-slate-900"
+                    />
+                  </div>
                 </div>
               )}
 
@@ -560,7 +624,7 @@ export const RewardsConfigTab: React.FC = () => {
                 </label>
                 <input
                   type="text"
-                  placeholder="e.g. Valid on food and beverage bills above ₹800"
+                  placeholder="e.g. Valid on food and beverage bills above ₹1,000"
                   value={formDescription}
                   onChange={(e) => setFormDescription(e.target.value)}
                   className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-slate-400 font-medium text-slate-900"
