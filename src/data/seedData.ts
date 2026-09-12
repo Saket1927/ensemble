@@ -20,7 +20,48 @@ export const THE_TABLE_LOGO = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3
 
 export const RADHA_LOGO = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 80" fill="none"><rect width="320" height="80" rx="4" fill="%23831843"/><circle cx="40" cy="40" r="18" stroke="%23f59e0b" stroke-width="2" fill="none"/><path d="M30 40 L50 40 M40 30 L40 50" stroke="%23f59e0b" stroke-width="2"/><text x="68" y="38" fill="%23ffffff" font-family="'Playfair Display', serif" font-size="20" font-weight="700" letter-spacing="4">RADHA</text><text x="68" y="54" fill="%23f59e0b" font-family="'Plus Jakarta Sans', sans-serif" font-size="9" font-weight="600" letter-spacing="2.5">AUTHENTIC DINING & SWEETS</text></svg>`;
 
+export const DEMO_LOGO = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 80" fill="none"><rect width="320" height="80" rx="4" fill="%230f172a"/><circle cx="40" cy="40" r="18" stroke="%2338bdf8" stroke-width="2" fill="none"/><path d="M30 40 L50 40 M40 30 L40 50" stroke="%2338bdf8" stroke-width="2"/><text x="68" y="38" fill="%23ffffff" font-family="'Plus Jakarta Sans', sans-serif" font-size="20" font-weight="700" letter-spacing="4">DEMO</text><text x="68" y="54" fill="%2338bdf8" font-family="'Plus Jakarta Sans', sans-serif" font-size="9" font-weight="600" letter-spacing="2.5">RESTAURANT & BAR</text></svg>`;
+
 export const INITIAL_RESTAURANTS: Restaurant[] = [
+  {
+    id: 'rest_demo',
+    slug: 'demo',
+    name: 'Demo Restaurant',
+    brandTitle: 'Demo Restaurant & Bar',
+    tagline: 'Modern Dining • Craft Cocktails',
+    description: 'Welcome to Demo Restaurant. Experience contemporary dining, craft beverages, and smart hospitality.',
+    cuisine: 'Contemporary Multi-Cuisine',
+    address: 'Demo Boulevard, Central Tower',
+    city: 'Mumbai, Maharashtra',
+    phone: '+91 98200 99999',
+    email: 'contact@demo-restaurant.com',
+    website: 'https://ensemble-restaurant.vercel.app/demo',
+    googleReviewUrl: 'https://g.page/r/demorestaurant/review',
+    status: 'active',
+    plan: 'Enterprise',
+    mrr: 14999,
+    createdAt: '2026-03-01',
+    branding: {
+      primaryColor: '#0f172a',
+      secondaryColor: '#38bdf8',
+      accentColor: '#f8fafc',
+      surfaceColor: '#ffffff',
+      textColor: '#0f172a',
+      fontFamily: 'Plus Jakarta Sans, sans-serif',
+      logoUrl: DEMO_LOGO,
+      heroImageUrl: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=1600&q=85',
+      coverImageUrl: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=1600&q=85',
+    },
+    socials: {
+      instagram: '@demorestaurant',
+      facebook: 'demorestaurant',
+      whatsapp: '+919820099999',
+      tiktok: '@demorestaurant',
+      youtube: '@demorestaurant',
+    },
+    hashtags: ['#DemoRestaurant', '#SmartDining', '#EnsembleDining'],
+    tablesCount: 20,
+  },
   {
     id: 'rest_radha',
     slug: 'radha',
@@ -180,7 +221,125 @@ export const INITIAL_RESTAURANTS: Restaurant[] = [
 ];
 
 export const INITIAL_MENU_ITEMS: Record<string, MenuItem[]> = {
-  rest_radha: [],
+  rest_demo: [
+    {
+      id: 'dish_d1',
+      restaurantId: 'rest_demo',
+      name: 'Truffle Parmesan Crisps',
+      category: 'Starters',
+      description: 'Handcrafted golden potato crisps infused with white truffle oil, rosemary sea salt, and aged parmesan.',
+      price: 380,
+      imageUrl: 'https://images.unsplash.com/photo-1541592106381-b31e9677c0e5?auto=format&fit=crop&w=800&q=80',
+      isVeg: true,
+      isChefSpecial: true,
+      isAvailable: true,
+      rating: 4.9,
+      calories: '340 kcal',
+    },
+    {
+      id: 'dish_d2',
+      restaurantId: 'rest_demo',
+      name: 'Smoked Chicken Bruschetta',
+      category: 'Starters',
+      description: 'Charred sourdough topped with slow-smoked chicken, heirloom cherry tomatoes, basil pesto, and balsamic glaze.',
+      price: 450,
+      imageUrl: 'https://images.unsplash.com/photo-1572695157366-5e585ab2b69f?auto=format&fit=crop&w=800&q=80',
+      isVeg: false,
+      isChefSpecial: false,
+      isAvailable: true,
+      rating: 4.8,
+      calories: '410 kcal',
+      spiceLevel: 1,
+    },
+    {
+      id: 'dish_d3',
+      restaurantId: 'rest_demo',
+      name: 'Wild Mushroom Risotto',
+      category: 'Mains',
+      description: 'Arborio rice simmered with porcini, shiitake, garlic herb butter, and 24-month aged Grana Padano.',
+      price: 590,
+      imageUrl: 'https://images.unsplash.com/photo-1633964913295-ceb43826e7c9?auto=format&fit=crop&w=800&q=80',
+      isVeg: true,
+      isChefSpecial: true,
+      isAvailable: true,
+      rating: 4.9,
+      calories: '520 kcal',
+    },
+    {
+      id: 'dish_d4',
+      restaurantId: 'rest_demo',
+      name: 'Charcoal Grilled Salmon',
+      category: 'Mains',
+      description: 'Norwegian salmon fillet grilled over binchotan charcoal with asparagus, lemon butter glaze, and smashed potatoes.',
+      price: 890,
+      imageUrl: 'https://images.unsplash.com/photo-1519708227418-c8fd9a32b7a2?auto=format&fit=crop&w=800&q=80',
+      isVeg: false,
+      isChefSpecial: true,
+      isAvailable: true,
+      rating: 4.95,
+      calories: '580 kcal',
+    },
+    {
+      id: 'dish_d5',
+      restaurantId: 'rest_demo',
+      name: 'Belgian Dark Chocolate Fondant',
+      category: 'Desserts',
+      description: 'Warm molten 70% dark chocolate cake served with Madagascar vanilla bean gelato and berry compote.',
+      price: 360,
+      imageUrl: 'https://images.unsplash.com/photo-1606313564200-e75d5e30476c?auto=format&fit=crop&w=800&q=80',
+      isVeg: true,
+      isChefSpecial: true,
+      isAvailable: true,
+      rating: 5.0,
+      calories: '450 kcal',
+    },
+    {
+      id: 'dish_d6',
+      restaurantId: 'rest_demo',
+      name: 'Passionfruit Elderflower Spritz',
+      category: 'Beverages',
+      description: 'Sparkling artisanal cooler with fresh passionfruit pulp, St. Germain elderflower cordial, mint, and crushed ice.',
+      price: 280,
+      imageUrl: 'https://images.unsplash.com/photo-1513558161293-cdaf765ed2fd?auto=format&fit=crop&w=800&q=80',
+      isVeg: true,
+      isChefSpecial: false,
+      isAvailable: true,
+      rating: 4.85,
+      calories: '140 kcal',
+    },
+  ],
+  rest_radha: [
+    {
+      id: 'dish_r1',
+      restaurantId: 'rest_radha',
+      name: 'Paneer Tikka Angara',
+      category: 'Starters',
+      description: 'Clay-oven smoked cottage cheese marinated in hung curd, Kashmiri chilies, and aromatic roasted spices.',
+      price: 395,
+      imageUrl: 'https://images.unsplash.com/photo-1567188040759-fb8a883dc6d8?auto=format&fit=crop&w=800&q=80',
+      isVeg: true,
+      isChefSpecial: true,
+      isAvailable: true,
+      rating: 4.9,
+      calories: '380 kcal',
+      spiceLevel: 2,
+    },
+    {
+      id: 'dish_r2',
+      restaurantId: 'rest_radha',
+      name: 'Dal Radha Special',
+      category: 'Mains',
+      description: 'Our 24-hour slow cooked black lentils simmered with organic churned butter, cream, and sun-ripened tomatoes.',
+      price: 445,
+      imageUrl: 'https://images.unsplash.com/photo-1546833999-b9f581a1996d?auto=format&fit=crop&w=800&q=80',
+      isVeg: true,
+      isChefSpecial: true,
+      isAvailable: true,
+      rating: 5.0,
+      calories: '410 kcal',
+      spiceLevel: 1,
+    },
+  ],
   rest_heritage: [
     {
       id: 'dish_h1',
@@ -426,6 +585,56 @@ export const INITIAL_MENU_ITEMS: Record<string, MenuItem[]> = {
 };
 
 export const INITIAL_REWARD_ITEMS: Record<string, RewardWheelItem[]> = {
+  rest_demo: [
+    {
+      id: 'rew_demo_1',
+      label: '10% OFF',
+      discountType: 'percentage',
+      discountValue: 10,
+      description: '10% welcome discount on total dining bill',
+      probability: 35,
+      color: '#0f172a',
+      textColor: '#ffffff',
+      active: true,
+      expiryDays: 7,
+    },
+    {
+      id: 'rew_demo_2',
+      label: '15% OFF',
+      discountType: 'percentage',
+      discountValue: 15,
+      description: '15% discount on food & beverages',
+      probability: 30,
+      color: '#0284c7',
+      textColor: '#ffffff',
+      active: true,
+      expiryDays: 7,
+    },
+    {
+      id: 'rew_demo_3',
+      label: 'Free Dessert',
+      discountType: 'free_item',
+      discountValue: 200,
+      description: 'Complimentary Dark Chocolate Fondant with any main dish',
+      probability: 20,
+      color: '#0369a1',
+      textColor: '#ffffff',
+      active: true,
+      expiryDays: 14,
+    },
+    {
+      id: 'rew_demo_4',
+      label: '₹250 Voucher',
+      discountType: 'fixed',
+      discountValue: 250,
+      description: 'Flat ₹250 off on dining bill above ₹1,000',
+      probability: 15,
+      color: '#38bdf8',
+      textColor: '#0f172a',
+      active: true,
+      expiryDays: 30,
+    },
+  ],
   rest_radha: [
     {
       id: 'rew_radha_1',
@@ -641,6 +850,23 @@ export const INITIAL_REWARD_ITEMS: Record<string, RewardWheelItem[]> = {
 };
 
 export const INITIAL_OFFERS: Record<string, Offer[]> = {
+  rest_demo: [
+    {
+      id: 'off_demo_1',
+      restaurantId: 'rest_demo',
+      name: '20% OFF Early Bird Dining',
+      code: 'EARLYBIRD20',
+      discountType: 'percentage',
+      discountValue: 20,
+      minBill: 1200,
+      validFrom: '2026-01-01',
+      validUntil: '2026-12-31',
+      applicableDays: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
+      usageLimit: 100,
+      usedCount: 0,
+      active: true,
+    },
+  ],
   rest_radha: [],
   rest_heritage: [
     {
@@ -887,6 +1113,14 @@ export const INITIAL_SOCIAL_SUBMISSIONS: Record<string, SocialSubmission[]> = {
 };
 
 export const INITIAL_TABLES: Record<string, TableRecord[]> = {
+  rest_demo: Array.from({ length: 20 }, (_, i) => ({
+    tableNumber: i + 1,
+    restaurantId: 'rest_demo',
+    qrUrl: `https://ensemble-restaurant.vercel.app/demo/t/${i + 1}`,
+    status: 'available',
+    totalScans: 0,
+    lastScanned: 'Never',
+  })),
   rest_radha: Array.from({ length: 20 }, (_, i) => ({
     tableNumber: i + 1,
     restaurantId: 'rest_radha',
@@ -906,6 +1140,7 @@ export const INITIAL_TABLES: Record<string, TableRecord[]> = {
 };
 
 export const INITIAL_CAMPAIGNS: Record<string, Campaign[]> = {
+  rest_demo: [],
   rest_radha: [],
   rest_heritage: [
     {

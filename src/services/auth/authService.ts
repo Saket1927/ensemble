@@ -99,6 +99,33 @@ export const DEFAULT_SEED_ACCOUNTS: StaffAccount[] = [
     status: 'active',
     createdAt: new Date('2026-03-01').toISOString(),
   },
+  {
+    id: 'user_demo_owner',
+    loginId: 'demo.owner',
+    email: 'owner@demo.com',
+    name: 'Demo Restaurant Owner',
+    passwordHash: '',
+    role: 'owner',
+    restaurantId: 'rest_demo',
+    restaurantName: 'Demo Restaurant',
+    restaurantSlug: 'demo',
+    status: 'active',
+    createdAt: new Date('2026-03-01').toISOString(),
+  },
+  {
+    id: 'user_demo_captain',
+    loginId: 'captain.demo',
+    email: 'captain@demo.com',
+    name: 'Demo Floor Captain',
+    passwordHash: '',
+    role: 'captain',
+    restaurantId: 'rest_demo',
+    restaurantName: 'Demo Restaurant',
+    restaurantSlug: 'demo',
+    assignedTables: Array.from({ length: 20 }, (_, i) => i + 1),
+    status: 'active',
+    createdAt: new Date('2026-03-01').toISOString(),
+  },
 ];
 
 class AuthService {
@@ -241,6 +268,10 @@ class AuthService {
         account = accounts.find((a) => a.restaurantSlug === 'radha' && (a.role === 'owner' || a.role === 'manager'));
       } else if (cleanId === 'captain.radha' || cleanId === 'radha.captain' || cleanId === 'radha.captain1') {
         account = accounts.find((a) => a.restaurantSlug === 'radha' && a.role === 'captain');
+      } else if (cleanId === 'demo' || cleanId === 'demo.owner') {
+        account = accounts.find((a) => a.restaurantSlug === 'demo' && (a.role === 'owner' || a.role === 'manager'));
+      } else if (cleanId === 'captain.demo' || cleanId === 'demo.captain' || cleanId === 'demo.captain1') {
+        account = accounts.find((a) => a.restaurantSlug === 'demo' && a.role === 'captain');
       }
     }
 

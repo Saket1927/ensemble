@@ -127,9 +127,9 @@ export const BillUploadModal: React.FC<BillUploadModalProps> = ({ onClose }) => 
             <div className="bg-amber-50 p-3 rounded-xl border border-amber-200 text-[10px] text-amber-800 space-y-1">
               <p className="font-bold flex items-center space-x-1">
                 <ShieldCheck className="w-3.5 h-3.5 text-amber-600" />
-                <span>Audited directly by Master Admin</span>
+                <span>Official Reward Verification</span>
               </p>
-              <p>Receipt data is kept confidential from staff and checked for platform reward compliance.</p>
+              <p>Receipt data is verified securely to ensure platform reward compliance.</p>
             </div>
 
             <button

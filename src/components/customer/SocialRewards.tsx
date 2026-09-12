@@ -312,13 +312,13 @@ export const SocialRewards: React.FC<SocialRewardsProps> = ({ onOpenSpin }) => {
               </p>
             </div>
 
-            {/* Hint to switch to Restaurant Admin to approve */}
-            <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-[11px] text-slate-600 text-left space-y-1">
-              <span className="font-bold text-slate-800 block">
-                Testing tip for reviewer:
+            {/* Customer-Safe Fast Verification Notice */}
+            <div className="p-3 bg-amber-50/80 rounded-xl border border-amber-200/70 text-[11px] text-amber-900 text-left space-y-1">
+              <span className="font-bold text-amber-950 block">
+                ⚡ Fast Staff Verification
               </span>
               <span>
-                Switch to <strong>Restaurant Admin → Social Posts</strong> in the top navigation bar to approve this submission and immediately unlock the spin!
+                Our floor team verifies social media check-ins promptly so your unlocked spin is available during your meal.
               </span>
             </div>
 

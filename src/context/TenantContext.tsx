@@ -442,6 +442,7 @@ interface TenantContextType {
   // Restaurant Admin Actions
   addRestaurant: (newRest: Partial<Restaurant>) => Restaurant;
   ensureRestaurantExists: (slug: string) => Restaurant;
+  resolveRestaurant: (slug: string) => Restaurant | null;
   updateRestaurant: (id: string, updates: Partial<Restaurant>) => void;
   toggleRestaurantStatus: (id: string) => void;
   updateRestaurantPlanFeatures: (id: string, features: any) => void;
@@ -470,7 +471,7 @@ interface TenantContextType {
   addTable: (tableNumber: number) => void;
   deleteTable: (tableNumber: number) => void;
   toggleTableActive: (tableNumber: number) => void;
-  recordTableScan: (restaurantId: string, tableNumber: number) => void;
+  recordTableScan: (restaurantId: string, tableNumber: number, slug?: string) => void;
   clearTable: (tableNumber: number, captainId?: string, captainName?: string) => { success: boolean; message: string };
   tableHistoryMap: Record<string, TableDayHistory[]>;
   clearTableAudits: ClearTableAuditLog[];
@@ -709,7 +710,18 @@ export const TenantProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       if (type === 'TABLE_SCAN' && tableNumber) {
         const targetRestId = restaurantId || activeRestaurantId;
         setTablesMap((prev) => {
-          const list = prev[targetRestId] || [];
+          let list = prev[targetRestId];
+          if (!list || list.length === 0) {
+            const count = activeRestaurant.tablesCount || 20;
+            list = Array.from({ length: count }, (_, i) => ({
+              tableNumber: i + 1,
+              restaurantId: targetRestId,
+              qrUrl: `https://ensemble-restaurant.vercel.app/${activeRestaurant.slug}/t/${i + 1}`,
+              status: 'available',
+              totalScans: 0,
+              lastScanned: 'Never',
+            }));
+          }
           const updated = list.map((t) => {
             if (t.tableNumber === tableNumber) {
               return {
@@ -749,7 +761,18 @@ export const TenantProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       if (type === 'SESSION_CREATED' && tableNumber) {
         const targetRestId = restaurantId || activeRestaurantId;
         setTablesMap((prev) => {
-          const list = prev[targetRestId] || [];
+          let list = prev[targetRestId];
+          if (!list || list.length === 0) {
+            const count = activeRestaurant.tablesCount || 20;
+            list = Array.from({ length: count }, (_, i) => ({
+              tableNumber: i + 1,
+              restaurantId: targetRestId,
+              qrUrl: `https://ensemble-restaurant.vercel.app/${activeRestaurant.slug}/t/${i + 1}`,
+              status: 'available',
+              totalScans: 0,
+              lastScanned: 'Never',
+            }));
+          }
           const updated = list.map((t) =>
             t.tableNumber === tableNumber ? { ...t, status: 'occupied' as const, lastScanned: 'Just now' } : t
           );
@@ -1314,14 +1337,32 @@ export const TenantProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     resetTable(tableNumber);
   };
 
-  const recordTableScan = (restaurantId: string, tableNumber: number) => {
+  const recordTableScan = (restaurantId: string, tableNumber: number, explicitSlug?: string) => {
     const now = new Date();
     const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     const todayDate = now.toISOString().split('T')[0];
 
+    const targetRest = restaurants.find((r) => r.id === restaurantId || (explicitSlug && r.slug.toLowerCase() === explicitSlug.toLowerCase())) || activeRestaurant;
+    const effectiveSlug = explicitSlug || targetRest?.slug || activeRestaurantSlug;
+    const effectiveRestId = targetRest?.id || restaurantId;
+
     // 1. Update Table Record: mark table as occupied, increment scan count
     setTablesMap((prev) => {
-      const list = prev[restaurantId] || [];
+      let list = prev[effectiveRestId];
+      if (!list || list.length === 0) {
+        const count = targetRest?.tablesCount || 20;
+        const origin = typeof window !== 'undefined' && window.location && window.location.hostname === 'localhost'
+          ? window.location.origin.replace(/\/$/, '')
+          : 'https://ensemble-restaurant.vercel.app';
+        list = Array.from({ length: count }, (_, i) => ({
+          tableNumber: i + 1,
+          restaurantId: effectiveRestId,
+          qrUrl: `${origin}/${effectiveSlug}/t/${i + 1}`,
+          status: 'available',
+          totalScans: 0,
+          lastScanned: 'Never',
+        }));
+      }
       const updated = list.map((t) => {
         if (t.tableNumber === tableNumber) {
           return {
@@ -1333,18 +1374,18 @@ export const TenantProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         }
         return t;
       });
-      return { ...prev, [restaurantId]: updated };
+      return { ...prev, [effectiveRestId]: updated };
     });
 
     // 2. Ensure an active session exists
     setTableSessions((prev) => {
-      const list = prev[restaurantId] || [];
+      const list = prev[effectiveRestId] || [];
       const existing = list.find((s) => s.tableNumber === tableNumber && (s.status === 'active' || s.status === 'bill_requested'));
       if (existing) return prev;
 
       const newSession: TableSession = {
-        id: `sess_${restaurantId}_t${tableNumber}_${Date.now()}`,
-        restaurantId,
+        id: `sess_${effectiveRestId}_t${tableNumber}_${Date.now()}`,
+        restaurantId: effectiveRestId,
         tableNumber,
         hostName: 'Table Guest',
         hostPhone: '',
@@ -1354,13 +1395,12 @@ export const TenantProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         status: 'active',
         createdAt: now.toISOString(),
       };
-      return { ...prev, [restaurantId]: [newSession, ...list] };
+      return { ...prev, [effectiveRestId]: [newSession, ...list] };
     });
 
     // 3. Real-Time Broadcast across network to Captain View
-    const targetRest = restaurants.find((r) => r.id === restaurantId) || activeRestaurant;
-    if (targetRest?.slug) {
-      realtimeHub.publish(targetRest.slug, 'TABLE_SCAN', restaurantId, {
+    if (effectiveSlug) {
+      realtimeHub.publish(effectiveSlug, 'TABLE_SCAN', effectiveRestId, {
         tableNumber,
         scannedAt: timeStr,
       }, tableNumber);
@@ -1819,7 +1859,12 @@ export const TenantProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     }));
 
     setTablesMap((prev) => ({ ...prev, [id]: newTables }));
-    setMenuItemsMap((prev) => ({ ...prev, [id]: [] }));
+    const starterDishes: MenuItem[] = (INITIAL_MENU_ITEMS['rest_demo'] || []).map((d) => ({
+      ...d,
+      id: `dish_${id}_${d.id.replace('dish_', '')}`,
+      restaurantId: id,
+    }));
+    setMenuItemsMap((prev) => ({ ...prev, [id]: starterDishes }));
     setOffersMap((prev) => ({ ...prev, [id]: [] }));
     setCustomersMap((prev) => ({ ...prev, [id]: [] }));
     setReviewsMap((prev) => ({ ...prev, [id]: [] }));
@@ -1927,6 +1972,38 @@ export const TenantProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       slug: cleanSlug,
       tablesCount: 20,
     });
+  };
+
+  const resolveRestaurant = (slug: string): Restaurant | null => {
+    if (!slug) return null;
+    const cleanSlug = slug.toLowerCase().trim();
+    if (
+      !cleanSlug ||
+      ['admin', 'master', 'restaurant', 'captain', 'api', 'auth', 'login', 'preview'].includes(cleanSlug)
+    ) {
+      return null;
+    }
+
+    // 1. Check loaded restaurants in current state
+    const existing = restaurants.find((r) => r.slug.toLowerCase() === cleanSlug);
+    if (existing) return existing;
+
+    // 2. Check static seed restaurants
+    const seed = INITIAL_RESTAURANTS.find((r) => r.slug.toLowerCase() === cleanSlug);
+    if (seed) {
+      setRestaurants((prev) => {
+        if (prev.some((r) => r.slug.toLowerCase() === cleanSlug)) return prev;
+        return [seed, ...prev];
+      });
+      return seed;
+    }
+
+    // 3. Fallback: Auto-provision for valid restaurant slug
+    if (/^[a-z0-9_-]{2,50}$/.test(cleanSlug)) {
+      return ensureRestaurantExists(cleanSlug);
+    }
+
+    return null;
   };
 
   const updateRestaurant = (id: string, updates: Partial<Restaurant>) => {
@@ -2235,6 +2312,7 @@ export const TenantProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
         addRestaurant,
         ensureRestaurantExists,
+        resolveRestaurant,
         updateRestaurant,
         toggleRestaurantStatus,
         updateRestaurantPlanFeatures,

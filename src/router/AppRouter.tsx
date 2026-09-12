@@ -22,7 +22,7 @@ const CustomerTableRoute: React.FC<{
       setActiveRestaurantSlug(restaurant.slug);
     }
     setActiveTable(tableNumber);
-    recordTableScan(restaurant.id, tableNumber);
+    recordTableScan(restaurant.id, tableNumber, restaurant.slug);
   }, [restaurant.id, restaurant.slug, tableNumber]);
 
   return (
@@ -30,6 +30,32 @@ const CustomerTableRoute: React.FC<{
       <div className="w-full max-w-md min-h-screen bg-[#fbf9f5] shadow-2xl flex flex-col relative">
         <CustomerLayout />
       </div>
+    </div>
+  );
+};
+
+const CustomerDiningError: React.FC<{
+  title?: string;
+  message?: string;
+}> = ({
+  title = 'Dining Session Unavailable',
+  message = "We couldn't open this dining table session. Please scan the QR code at your table again or notify a member of our dining staff for assistance.",
+}) => {
+  return (
+    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col items-center justify-center p-6 text-center font-sans">
+      <div className="w-16 h-16 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center mb-4 shadow-lg shadow-amber-500/10">
+        <UtensilsCrossed className="w-8 h-8" />
+      </div>
+      <h2 className="text-2xl font-bold text-white font-serif mb-2">{title}</h2>
+      <p className="text-sm text-slate-400 max-w-md mb-6 leading-relaxed">
+        {message}
+      </p>
+      <button
+        onClick={() => window.location.reload()}
+        className="px-6 py-3 bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-black uppercase tracking-wider rounded-xl transition shadow-lg shadow-amber-500/20 active:scale-95"
+      >
+        Refresh Table Session
+      </button>
     </div>
   );
 };
@@ -56,7 +82,7 @@ const CustomerGeneralRoute: React.FC<{
 
 export const AppRouter: React.FC = () => {
   const { user, isLoading } = useAuth();
-  const { restaurants, setActiveRestaurantSlug, setActiveTable, activeRestaurantSlug } = useTenant();
+  const { restaurants, setActiveRestaurantSlug, setActiveTable, activeRestaurantSlug, resolveRestaurant } = useTenant();
 
   const [currentPath, setCurrentPath] = useState<string>(window.location.pathname);
 
@@ -217,28 +243,15 @@ export const AppRouter: React.FC = () => {
 
   if (pathParts.length > 0 && !RESERVED_PREFIXES.includes(pathParts[0])) {
     const candidateSlug = pathParts[0];
-    const matchedRestaurant = restaurants.find((r) => r.slug.toLowerCase() === candidateSlug.toLowerCase());
+    const matchedRestaurant = resolveRestaurant(candidateSlug);
 
-    // If restaurant is NOT found, show branded error page
+    // If restaurant is NOT found, show customer-safe error page
     if (!matchedRestaurant) {
       return (
-        <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col items-center justify-center p-6 text-center font-sans">
-          <div className="w-16 h-16 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center mb-4">
-            <UtensilsCrossed className="w-8 h-8" />
-          </div>
-          <h2 className="text-2xl font-bold text-white font-serif mb-2">Restaurant Not Found</h2>
-          <p className="text-sm text-slate-400 max-w-md mb-6 leading-relaxed">
-            We couldn't find a restaurant registered under{' '}
-            <span className="font-mono text-amber-300 font-bold">"{candidateSlug}"</span>.
-            Please verify the URL or scan the official QR code at your dining table.
-          </p>
-          <button
-            onClick={() => navigate('/')}
-            className="px-5 py-2.5 bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold rounded-xl transition"
-          >
-            Return to ENSEMBLE Home &rarr;
-          </button>
-        </div>
+        <CustomerDiningError
+          title="Dining Session Unavailable"
+          message={`We couldn't connect to a restaurant registered under "${candidateSlug}". Please check the dining table QR code or notify staff for assistance.`}
+        />
       );
     }
 
@@ -415,22 +428,10 @@ export const AppRouter: React.FC = () => {
 
       if (isNaN(tableNum) || tableNum <= 0 || tableNum > maxTables) {
         return (
-          <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col items-center justify-center p-6 text-center font-sans">
-            <div className="w-16 h-16 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-400 flex items-center justify-center mb-4">
-              <AlertCircle className="w-8 h-8" />
-            </div>
-            <h2 className="text-2xl font-bold text-white font-serif mb-2">Table Not Found</h2>
-            <p className="text-sm text-slate-400 max-w-md mb-6 leading-relaxed">
-              Table <span className="font-mono text-rose-300 font-bold">#{pathParts[2]}</span> does not exist at{' '}
-              <span className="text-white font-bold">{matchedRestaurant.name}</span>. Valid dining tables are 1 through {maxTables}.
-            </p>
-            <button
-              onClick={() => navigate(`/${matchedRestaurant.slug}`)}
-              className="px-5 py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-black uppercase tracking-wider rounded-xl transition"
-            >
-              Explore {matchedRestaurant.name} Menu &rarr;
-            </button>
-          </div>
+          <CustomerDiningError
+            title="Dining Table Unavailable"
+            message={`Table #${pathParts[2]} could not be opened at ${matchedRestaurant.name}. Please scan your table's QR code again or ask your server for assistance.`}
+          />
         );
       }
 
@@ -438,6 +439,16 @@ export const AppRouter: React.FC = () => {
     }
 
     // 7D. GENERAL CUSTOMER EXPERIENCE (/:restaurantSlug)
+    // If authenticated owner/manager visits the root slug, direct them to their admin dashboard
+    if (
+      user &&
+      (user.role === 'master_admin' ||
+        ((user.role === 'owner' || user.role === 'manager') &&
+          user.restaurantSlug?.toLowerCase() === candidateSlug.toLowerCase()))
+    ) {
+      navigate(`/${matchedRestaurant.slug}/admin`);
+      return null;
+    }
     return <CustomerGeneralRoute restaurant={matchedRestaurant} />;
   }
 
