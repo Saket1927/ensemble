@@ -552,7 +552,17 @@ export const TenantProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   );
   const [tablesMap, setTablesMap] = useState<Record<string, TableRecord[]>>(() => {
     const saved = loadState<Record<string, TableRecord[]>>(STORAGE_KEYS.TABLES, INITIAL_TABLES);
-    return { ...INITIAL_TABLES, ...saved };
+    const combined = { ...INITIAL_TABLES, ...saved };
+    const sanitized: Record<string, TableRecord[]> = {};
+    for (const [restId, tables] of Object.entries(combined)) {
+      const rest = INITIAL_RESTAURANTS.find((r) => r.id === restId);
+      const slug = rest?.slug || restId.replace('rest_', '');
+      sanitized[restId] = (tables || []).map((t) => ({
+        ...t,
+        qrUrl: `https://ensemble-restaurant.vercel.app/${slug}/t/${t.tableNumber}`,
+      }));
+    }
+    return sanitized;
   });
   const [campaignsMap] = useState<Record<string, Campaign[]>>(INITIAL_CAMPAIGNS);
 
@@ -887,7 +897,7 @@ export const TenantProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     phone: activeRestaurant.phone || '+91 99999 00000',
     gstin: '27AABCR8765Q1Z2',
     fssai: '11521018000999',
-    website: `https://${activeRestaurant.slug}.ensemble.in`,
+    website: `https://ensemble-restaurant.vercel.app/${activeRestaurant.slug}`,
     socialHandle: activeRestaurant.socials?.instagram || `@${activeRestaurant.slug}`,
     footerMessage: 'Thank you for dining with us! Scan the QR to earn rewards or leave a review.',
     thankYouMessage: 'We look forward to welcoming you back.',
@@ -1745,7 +1755,7 @@ export const TenantProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       geofenceRadiusMeters: 150,
       phone: newRest.phone || '+91 99999 00000',
       email: newRest.email || `contact@${slug}.com`,
-      website: newRest.website || `https://${slug}.ensemble.com`,
+      website: newRest.website || `https://ensemble-restaurant.vercel.app/${slug}`,
       googleReviewUrl: newRest.googleReviewUrl || `https://g.page/r/${slug}/review`,
       status: 'active',
       plan: newRest.plan || 'Growth',
@@ -1795,9 +1805,9 @@ export const TenantProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
     setRestaurants((prev) => [fullRest, ...prev]);
 
-    const origin = typeof window !== 'undefined' && window.location && window.location.origin
+    const origin = typeof window !== 'undefined' && window.location && window.location.hostname === 'localhost'
       ? window.location.origin.replace(/\/$/, '')
-      : 'https://ensemble-mqjlz2le8-ensemble6.vercel.app';
+      : 'https://ensemble-restaurant.vercel.app';
 
     const newTables: TableRecord[] = Array.from({ length: fullRest.tablesCount }, (_, i) => ({
       tableNumber: i + 1,
@@ -1826,7 +1836,7 @@ export const TenantProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         phone: fullRest.phone,
         gstin: '27AABCR8765Q1Z2',
         fssai: '11521018000999',
-        website: `https://${fullRest.slug}.ensemble.in`,
+        website: `https://ensemble-restaurant.vercel.app/${fullRest.slug}`,
         socialHandle: fullRest.socials.instagram,
         footerMessage: 'Thank you for dining with us! Scan to review or earn rewards.',
         thankYouMessage: 'We look forward to hosting you again soon.',
@@ -2088,9 +2098,9 @@ export const TenantProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   };
 
   const addTable = (tableNumber: number) => {
-    const origin = typeof window !== 'undefined' && window.location && window.location.origin
+    const origin = typeof window !== 'undefined' && window.location && window.location.hostname === 'localhost'
       ? window.location.origin.replace(/\/$/, '')
-      : 'https://ensemble-mqjlz2le8-ensemble6.vercel.app';
+      : 'https://ensemble-restaurant.vercel.app';
     const newTable: TableRecord = {
       tableNumber,
       restaurantId: activeRestaurantId,

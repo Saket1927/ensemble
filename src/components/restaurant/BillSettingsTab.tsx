@@ -26,7 +26,7 @@ export const BillSettingsTab: React.FC = () => {
     phone: activeRestaurant.phone || '+91 98200 48123',
     gstin: '27AABCT2819C1Z4',
     fssai: '11521024000492',
-    website: activeRestaurant.website || 'https://ensemble.com',
+    website: activeRestaurant.website || `https://ensemble-restaurant.vercel.app/${activeRestaurant.slug}`,
     socialHandle: activeRestaurant.socials?.instagram || '@restaurant',
     footerMessage: 'Thank you for dining with us! Please scan your receipt to earn loyalty rewards.',
     thankYouMessage: 'We look forward to welcoming you again.',

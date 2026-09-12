@@ -2,7 +2,11 @@ import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { UtensilsCrossed, Lock, User, ArrowRight, AlertCircle, Eye, EyeOff, CheckCircle2 } from 'lucide-react';
 
-export const RestaurantLogin: React.FC<{ onNavigate: (path: string) => void }> = ({ onNavigate }) => {
+export const RestaurantLogin: React.FC<{
+  onNavigate: (path: string) => void;
+  restaurantSlug?: string;
+  restaurantName?: string;
+}> = ({ onNavigate, restaurantSlug, restaurantName }) => {
   const { login } = useAuth();
   const [loginId, setLoginId] = useState('');
   const [password, setPassword] = useState('');
@@ -19,12 +23,16 @@ export const RestaurantLogin: React.FC<{ onNavigate: (path: string) => void }> =
 
     setError(null);
     setLoading(true);
-    // Allow owner or manager roles
-    const res = await login(loginId, password, ['owner', 'manager']);
+    // Allow owner or manager roles, scoped to restaurantSlug if provided
+    const res = await login(loginId, password, ['owner', 'manager'], restaurantSlug);
     setLoading(false);
 
     if (res.success) {
-      onNavigate('/restaurant');
+      if (restaurantSlug) {
+        onNavigate(`/${restaurantSlug}/admin`);
+      } else {
+        onNavigate('/restaurant');
+      }
     } else {
       setError(res.error || 'Authentication failed');
     }
@@ -41,12 +49,14 @@ export const RestaurantLogin: React.FC<{ onNavigate: (path: string) => void }> =
           <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-tr from-amber-600 to-amber-500 text-slate-950 font-black text-2xl shadow-xl shadow-amber-600/20 mb-4">
             <UtensilsCrossed className="w-7 h-7 text-slate-950" />
           </div>
-          <h1 className="text-2xl font-bold tracking-tight text-white font-serif">ENSEMBLE</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-white font-serif">
+            {restaurantName || 'ENSEMBLE'}
+          </h1>
           <div className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full bg-amber-950/40 border border-amber-800/40 text-[11px] font-mono text-amber-400 mt-2">
-            <span>RESTAURANT ADMIN PORTAL</span>
+            <span>{restaurantName ? `${restaurantName.toUpperCase()} ADMIN PORTAL` : 'RESTAURANT ADMIN PORTAL'}</span>
           </div>
           <p className="mt-2 text-xs text-slate-400">
-            For Restaurant Owners & General Managers.
+            {restaurantName ? `Management login for ${restaurantName} owners & managers.` : 'For Restaurant Owners & General Managers.'}
           </p>
         </div>
 

@@ -9,8 +9,7 @@ export interface QROptions {
 
 /**
  * Constructs the canonical public customer URL for a table.
- * If in browser and not localhost, uses window.location.origin (e.g. https://ensemble-xxx.vercel.app/heritage/t/1)
- * Otherwise defaults to standard production URL https://heritage.ensemble.com/t/1
+ * Standard production URL: https://ensemble-restaurant.vercel.app/:restaurantSlug/t/:tableNumber
  */
 export function getTableCanonicalUrl(restaurantSlug: string, tableNumber: number, customOrigin?: string): string {
   const cleanSlug = (restaurantSlug || 'radha').toLowerCase().trim();
@@ -24,9 +23,9 @@ export function getTableCanonicalUrl(restaurantSlug: string, tableNumber: number
     return `${cleanOrigin}/${cleanSlug}/t/${safeTableNum}`;
   }
 
-  if (typeof window !== 'undefined' && window.location && window.location.origin) {
-    const origin = window.location.origin.replace(/\/$/, '');
-    return `${origin}/${cleanSlug}/t/${safeTableNum}`;
+  // If in local development, use localhost
+  if (typeof window !== 'undefined' && window.location && window.location.hostname === 'localhost') {
+    return `${window.location.origin}/${cleanSlug}/t/${safeTableNum}`;
   }
 
   return `https://ensemble-restaurant.vercel.app/${cleanSlug}/t/${safeTableNum}`;

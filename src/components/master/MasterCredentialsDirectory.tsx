@@ -72,9 +72,13 @@ export const MasterCredentialsDirectory: React.FC = () => {
   });
 
   const getPortalUrl = (acc: StaffAccount) => {
-    const origin = typeof window !== 'undefined' ? window.location.origin : '';
-    if (acc.role === 'master_admin') return `${origin}/master/login`;
-    if (acc.role === 'captain' && acc.restaurantSlug) return `${origin}/${acc.restaurantSlug}/captain/login`;
+    const origin =
+      typeof window !== 'undefined' && window.location && window.location.hostname === 'localhost'
+        ? window.location.origin
+        : 'https://ensemble-restaurant.vercel.app';
+    if (acc.role === 'master_admin') return `${origin}/admin`;
+    if (acc.role === 'captain' && acc.restaurantSlug) return `${origin}/${acc.restaurantSlug}/captain`;
+    if (acc.restaurantSlug) return `${origin}/${acc.restaurantSlug}/admin`;
     return `${origin}/restaurant/login`;
   };
 

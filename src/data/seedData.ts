@@ -890,7 +890,7 @@ export const INITIAL_TABLES: Record<string, TableRecord[]> = {
   rest_radha: Array.from({ length: 20 }, (_, i) => ({
     tableNumber: i + 1,
     restaurantId: 'rest_radha',
-    qrUrl: `https://radha.ensemble.com/t/${i + 1}`,
+    qrUrl: `https://ensemble-restaurant.vercel.app/radha/t/${i + 1}`,
     status: 'available',
     totalScans: 0,
     lastScanned: 'Never',
@@ -898,7 +898,7 @@ export const INITIAL_TABLES: Record<string, TableRecord[]> = {
   rest_heritage: Array.from({ length: 30 }, (_, i) => ({
     tableNumber: i + 1,
     restaurantId: 'rest_heritage',
-    qrUrl: `https://heritage.ensemble.com/t/${i + 1}`,
+    qrUrl: `https://ensemble-restaurant.vercel.app/heritage/t/${i + 1}`,
     status: (i === 11 || i === 3 || i === 7) ? 'occupied' : 'available',
     totalScans: 48 + (30 - i) * 6,
     lastScanned: i === 11 ? 'Just now' : `${i + 2} hours ago`,

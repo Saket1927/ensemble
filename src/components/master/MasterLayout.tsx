@@ -139,7 +139,7 @@ export const MasterLayout: React.FC = () => {
             </div>
           </div>
           <button
-            onClick={() => logout('/master/login')}
+            onClick={() => logout('/admin/login')}
             className="p-1.5 text-slate-400 hover:text-rose-400 hover:bg-slate-900 rounded-lg transition"
             title="Sign Out"
           >
@@ -199,7 +199,7 @@ export const MasterLayout: React.FC = () => {
             </button>
 
             <button
-              onClick={() => logout('/master/login')}
+              onClick={() => logout('/admin/login')}
               className="px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-rose-950/40 border border-slate-700 hover:border-rose-800 text-slate-300 hover:text-rose-400 text-xs font-semibold flex items-center space-x-1.5 transition"
               title="Sign Out of Master Portal"
             >

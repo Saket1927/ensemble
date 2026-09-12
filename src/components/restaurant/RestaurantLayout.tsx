@@ -107,7 +107,7 @@ export const RestaurantLayout: React.FC = () => {
   ];
 
   const handleOpenLiveCustomerSite = () => {
-    window.open(`/${activeRestaurant.slug}/t/1`, '_blank');
+    window.open(`/${activeRestaurant.slug}`, '_blank');
   };
 
   return (
@@ -129,7 +129,7 @@ export const RestaurantLayout: React.FC = () => {
               </div>
               <div className="text-[11px] text-slate-400 truncate flex items-center space-x-1">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                <span className="font-mono">{activeRestaurant.slug}.ensemble.com</span>
+                <span className="font-mono">/{activeRestaurant.slug}</span>
               </div>
             </div>
           </div>

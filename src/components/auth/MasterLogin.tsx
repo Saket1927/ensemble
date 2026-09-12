@@ -23,7 +23,7 @@ export const MasterLogin: React.FC<{ onNavigate: (path: string) => void }> = ({ 
     setLoading(false);
 
     if (res.success) {
-      onNavigate('/master');
+      onNavigate('/admin');
     } else {
       setError(res.error || 'Authentication failed');
     }

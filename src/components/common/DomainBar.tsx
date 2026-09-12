@@ -34,13 +34,13 @@ export const DomainBar: React.FC = () => {
   // Compute simulated browser URL
   let simulatedUrl = '';
   if (role === 'master_admin') {
-    simulatedUrl = 'https://admin.ensemble.com/platform';
+    simulatedUrl = 'https://ensemble-restaurant.vercel.app/admin';
   } else if (role === 'restaurant_admin') {
-    simulatedUrl = `https://${activeRestaurantSlug}.admin.ensemble.com/dashboard`;
+    simulatedUrl = `https://ensemble-restaurant.vercel.app/${activeRestaurantSlug}/admin`;
   } else if (role === 'captain') {
-    simulatedUrl = `https://${activeRestaurantSlug}.captain.ensemble.com/floor`;
+    simulatedUrl = `https://ensemble-restaurant.vercel.app/${activeRestaurantSlug}/captain`;
   } else {
-    simulatedUrl = `https://${activeRestaurantSlug}.ensemble.com/t/${activeTable}`;
+    simulatedUrl = `https://ensemble-restaurant.vercel.app/${activeRestaurantSlug}/t/${activeTable}`;
   }
 
   const handleCopyUrl = () => {
@@ -177,7 +177,7 @@ export const DomainBar: React.FC = () => {
                       <div className="flex-1 truncate">
                         <div className="font-semibold leading-none">{rest.name}</div>
                         <div className="text-[10px] text-slate-400 font-mono mt-0.5">
-                          {rest.slug}.ensemble.com
+                          /{rest.slug}
                         </div>
                       </div>
                       {rest.slug === activeRestaurantSlug && (

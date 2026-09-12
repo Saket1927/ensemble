@@ -230,7 +230,7 @@ export const TablesQrTab: React.FC = () => {
           <div>
             <span className="font-bold text-slate-900">Target QR Domain: </span>
             <span className="font-mono text-emerald-600 font-semibold">
-              {domainOverride || (typeof window !== 'undefined' ? window.location.origin : `https://${activeRestaurant.slug}.ensemble.com`)}
+              {domainOverride || (typeof window !== 'undefined' && window.location.hostname === 'localhost' ? window.location.origin : 'https://ensemble-restaurant.vercel.app')}
             </span>
           </div>
         </div>

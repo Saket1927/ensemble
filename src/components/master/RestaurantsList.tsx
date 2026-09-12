@@ -234,7 +234,7 @@ export const RestaurantsList: React.FC<{ onOpenOnboard: () => void }> = ({ onOpe
                   </td>
 
                   <td className="py-3.5 px-4 font-mono text-[11px] text-emerald-400">
-                    {rest.slug}.ensemble.com
+                    /{rest.slug}
                   </td>
 
                   <td className="py-3.5 px-4">
@@ -268,13 +268,22 @@ export const RestaurantsList: React.FC<{ onOpenOnboard: () => void }> = ({ onOpe
                   </td>
 
                   <td className="py-3.5 px-4 text-right">
-                    <div className="flex items-center justify-end space-x-2">
+                    <div className="flex items-center justify-end space-x-1.5">
                       <button
-                        onClick={() => window.open(`/${rest.slug}/t/1`, '_blank')}
-                        className="py-1 px-2.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-emerald-400 text-[11px] font-semibold flex items-center space-x-1 transition border border-slate-700"
-                        title="View Public Customer Experience"
+                        onClick={() => window.open(`/${rest.slug}`, '_blank')}
+                        className="py-1 px-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-emerald-400 text-[11px] font-semibold flex items-center space-x-1 transition border border-slate-700"
+                        title="View Public Diner Experience"
                       >
-                        <span>Guest View</span>
+                        <span>Guest</span>
+                        <ExternalLink className="w-3 h-3" />
+                      </button>
+
+                      <button
+                        onClick={() => window.open(`/${rest.slug}/captain`, '_blank')}
+                        className="py-1 px-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-amber-400 text-[11px] font-semibold flex items-center space-x-1 transition border border-slate-700"
+                        title="View Captain Floor Terminal"
+                      >
+                        <span>Captain</span>
                         <ExternalLink className="w-3 h-3" />
                       </button>
 
@@ -284,7 +293,7 @@ export const RestaurantsList: React.FC<{ onOpenOnboard: () => void }> = ({ onOpe
                         title="Manage Restaurant Staff Accounts"
                       >
                         <Shield className="w-3 h-3" />
-                        <span>Staff & Access</span>
+                        <span>Staff</span>
                       </button>
                     </div>
                   </td>

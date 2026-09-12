@@ -84,17 +84,21 @@ export const AppRouter: React.FC = () => {
 
   const cleanPath = currentPath.toLowerCase();
 
-  // 1. MASTER LOGIN ROUTE
-  if (cleanPath === '/master/login') {
+  // 1. MASTER LOGIN ROUTE (/admin/login or legacy /master/login)
+  if (cleanPath === '/admin/login' || cleanPath === '/master/login') {
     if (user?.role === 'master_admin') {
-      navigate('/master');
+      navigate('/admin');
       return null;
     }
     return <MasterLogin onNavigate={navigate} />;
   }
 
-  // 2. MASTER DASHBOARD ROUTE (Protected)
-  if (cleanPath === '/master' || cleanPath.startsWith('/master/')) {
+  // 2. MASTER DASHBOARD ROUTE (/admin or legacy /master) (Protected)
+  if (cleanPath === '/admin' || cleanPath.startsWith('/admin/') || cleanPath === '/master' || cleanPath.startsWith('/master/')) {
+    if (cleanPath === '/master' || cleanPath.startsWith('/master/')) {
+      navigate('/admin');
+      return null;
+    }
     if (!user) {
       return <MasterLogin onNavigate={navigate} />;
     }
@@ -111,8 +115,8 @@ export const AppRouter: React.FC = () => {
           </p>
           <button
             onClick={() => {
-              if (user.role === 'captain') navigate('/captain');
-              else navigate('/restaurant');
+              if (user.role === 'captain') navigate(user.restaurantSlug ? `/${user.restaurantSlug}/captain` : '/captain');
+              else navigate(user.restaurantSlug ? `/${user.restaurantSlug}/admin` : '/restaurant');
             }}
             className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold rounded-xl"
           >
@@ -127,7 +131,7 @@ export const AppRouter: React.FC = () => {
   // 3. RESTAURANT LOGIN ROUTE
   if (cleanPath === '/restaurant/login') {
     if (user && (user.role === 'owner' || user.role === 'manager')) {
-      navigate('/restaurant');
+      navigate(user.restaurantSlug ? `/${user.restaurantSlug}/admin` : '/restaurant');
       return null;
     }
     return <RestaurantLogin onNavigate={navigate} />;
@@ -138,7 +142,7 @@ export const AppRouter: React.FC = () => {
     if (!user) {
       return <RestaurantLogin onNavigate={navigate} />;
     }
-    if (user.role !== 'owner' && user.role !== 'manager') {
+    if (user.role !== 'owner' && user.role !== 'manager' && user.role !== 'master_admin') {
       // Reject non-restaurant user
       return (
         <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col items-center justify-center p-6 text-center">
@@ -151,8 +155,8 @@ export const AppRouter: React.FC = () => {
           </p>
           <button
             onClick={() => {
-              if (user.role === 'captain') navigate('/captain');
-              else navigate('/master');
+              if (user.role === 'captain') navigate(user.restaurantSlug ? `/${user.restaurantSlug}/captain` : '/captain');
+              else navigate('/admin');
             }}
             className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold rounded-xl"
           >
@@ -178,7 +182,7 @@ export const AppRouter: React.FC = () => {
     if (!user) {
       return <CaptainLogin onNavigate={navigate} />;
     }
-    if (user.role !== 'captain') {
+    if (user.role !== 'captain' && user.role !== 'master_admin') {
       return (
         <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col items-center justify-center p-6 text-center">
           <div className="w-12 h-12 rounded-2xl bg-rose-500/20 border border-rose-500/30 text-rose-400 flex items-center justify-center mb-4">
@@ -190,8 +194,8 @@ export const AppRouter: React.FC = () => {
           </p>
           <button
             onClick={() => {
-              if (user.role === 'master_admin') navigate('/master');
-              else navigate('/restaurant');
+              if (user.role === 'master_admin') navigate('/admin');
+              else navigate(user.restaurantSlug ? `/${user.restaurantSlug}/admin` : '/restaurant');
             }}
             className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold rounded-xl"
           >
@@ -318,7 +322,93 @@ export const AppRouter: React.FC = () => {
       return <CaptainLayout />;
     }
 
-    // 7C. TABLE CUSTOMER EXPERIENCE (/:restaurantSlug/t/:tableNumber)
+    // 7C. RESTAURANT-SPECIFIC ADMIN LOGIN (/:restaurantSlug/admin/login)
+    if (pathParts[1] === 'admin' && pathParts[2] === 'login') {
+      if (
+        user &&
+        (user.role === 'owner' || user.role === 'manager' || user.role === 'master_admin') &&
+        (user.role === 'master_admin' || user.restaurantSlug?.toLowerCase() === candidateSlug.toLowerCase())
+      ) {
+        navigate(`/${matchedRestaurant.slug}/admin`);
+        return null;
+      }
+      return (
+        <RestaurantLogin
+          onNavigate={navigate}
+          restaurantSlug={matchedRestaurant.slug}
+          restaurantName={matchedRestaurant.name}
+        />
+      );
+    }
+
+    // 7D. RESTAURANT-SPECIFIC ADMIN MANAGEMENT DASHBOARD (/:restaurantSlug/admin)
+    if (pathParts[1] === 'admin') {
+      if (!user) {
+        return (
+          <RestaurantLogin
+            onNavigate={navigate}
+            restaurantSlug={matchedRestaurant.slug}
+            restaurantName={matchedRestaurant.name}
+          />
+        );
+      }
+
+      // Captains are restricted to Captain Terminal
+      if (user.role === 'captain') {
+        return (
+          <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col items-center justify-center p-6 text-center font-sans">
+            <div className="w-12 h-12 rounded-2xl bg-amber-500/20 border border-amber-500/30 text-amber-400 flex items-center justify-center mb-4">
+              <UtensilsCrossed className="w-6 h-6" />
+            </div>
+            <h2 className="text-xl font-bold text-white mb-1">Floor Staff Restricted: Captain View Required</h2>
+            <p className="text-xs text-slate-400 max-w-sm mb-6">
+              You are logged in as a captain. Please use the high-speed floor terminal to manage tables and orders.
+            </p>
+            <button
+              onClick={() => navigate(`/${matchedRestaurant.slug}/captain`)}
+              className="px-4 py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold rounded-xl transition"
+            >
+              Go to Captain Terminal &rarr;
+            </button>
+          </div>
+        );
+      }
+
+      // Multi-tenant check: Owner/Manager cannot manage a different restaurant
+      if (
+        user.role !== 'master_admin' &&
+        user.restaurantSlug &&
+        user.restaurantSlug.toLowerCase() !== candidateSlug.toLowerCase()
+      ) {
+        return (
+          <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col items-center justify-center p-6 text-center font-sans">
+            <div className="w-12 h-12 rounded-2xl bg-rose-500/20 border border-rose-500/30 text-rose-400 flex items-center justify-center mb-4">
+              <AlertCircle className="w-6 h-6" />
+            </div>
+            <h2 className="text-xl font-bold text-white mb-1">Restaurant Management Mismatch</h2>
+            <p className="text-xs text-slate-400 max-w-md mb-6 leading-relaxed">
+              You are authenticated as an administrator for{' '}
+              <span className="text-amber-300 font-bold">{user.restaurantName || user.restaurantSlug}</span>.
+              You cannot manage <span className="text-white font-bold">{matchedRestaurant.name}</span>.
+            </p>
+            <button
+              onClick={() => navigate(`/${user.restaurantSlug}/admin`)}
+              className="px-4 py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-black uppercase tracking-wider rounded-xl transition shadow-md shadow-amber-500/20"
+            >
+              Go to Your Restaurant Dashboard ({user.restaurantName || user.restaurantSlug}) &rarr;
+            </button>
+          </div>
+        );
+      }
+
+      // Sync active restaurant tenant
+      if (activeRestaurantSlug !== matchedRestaurant.slug) {
+        setActiveRestaurantSlug(matchedRestaurant.slug);
+      }
+      return <RestaurantLayout />;
+    }
+
+    // 7E. TABLE CUSTOMER EXPERIENCE (/:restaurantSlug/t/:tableNumber)
     if (pathParts[1] === 't' && pathParts[2]) {
       const tableNum = parseInt(pathParts[2], 10);
       const maxTables = matchedRestaurant.tablesCount || 20;
@@ -355,15 +445,15 @@ export const AppRouter: React.FC = () => {
   // If user is already authenticated, redirect to their role-specific dashboard
   if (user) {
     if (user.role === 'master_admin') {
-      navigate('/master');
+      navigate('/admin');
       return null;
     }
     if (user.role === 'owner' || user.role === 'manager') {
-      navigate('/restaurant');
+      navigate(user.restaurantSlug ? `/${user.restaurantSlug}/admin` : '/restaurant');
       return null;
     }
     if (user.role === 'captain') {
-      navigate('/captain');
+      navigate(user.restaurantSlug ? `/${user.restaurantSlug}/captain` : '/captain');
       return null;
     }
   }
@@ -387,7 +477,7 @@ export const AppRouter: React.FC = () => {
 
         <div className="flex items-center space-x-3">
           <button
-            onClick={() => navigate('/master/login')}
+            onClick={() => navigate('/admin/login')}
             className="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold uppercase tracking-wider transition shadow-sm"
           >
             Master Sign In
@@ -413,7 +503,7 @@ export const AppRouter: React.FC = () => {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-12 text-left">
           {/* 1. Master Admin */}
           <div
-            onClick={() => navigate('/master/login')}
+            onClick={() => navigate('/admin')}
             className="p-5 rounded-2xl bg-slate-900/90 border border-slate-800 hover:border-emerald-500/50 hover:bg-slate-900 transition-all cursor-pointer group shadow-xl"
           >
             <div className="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
@@ -427,18 +517,18 @@ export const AppRouter: React.FC = () => {
               Global platform control center. Onboard restaurants, manage subscription tiers, staff access, and cross-chain analytics.
             </p>
             <div className="mt-4 text-xs font-semibold text-emerald-400 flex items-center space-x-1">
-              <span>Enter Portal</span>
+              <span>/admin</span>
               <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
             </div>
           </div>
 
           {/* 2. Restaurant Admin */}
           <div
-            onClick={() => navigate('/restaurant/login')}
+            onClick={() => navigate('/radha/admin')}
             className="p-5 rounded-2xl bg-slate-900/90 border border-slate-800 hover:border-amber-500/50 hover:bg-slate-900 transition-all cursor-pointer group shadow-xl"
           >
             <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-              <UtensilsCrossed className="w-5 h-5" />
+              <UtensilsCrossed className="w-5 h-7 text-amber-400" />
             </div>
             <div className="text-[10px] font-mono uppercase tracking-wider text-amber-400">Layer 2</div>
             <h3 className="font-bold text-white text-sm mt-0.5 group-hover:text-amber-400 transition">
@@ -448,14 +538,14 @@ export const AppRouter: React.FC = () => {
               Dedicated partner console for Owners and Managers. Create Captains, menus, tables, spin rewards, and monitor live revenue.
             </p>
             <div className="mt-4 text-xs font-semibold text-amber-400 flex items-center space-x-1">
-              <span>Enter Portal</span>
+              <span>/radha/admin</span>
               <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
             </div>
           </div>
 
           {/* 3. Captain Terminal */}
           <div
-            onClick={() => navigate('/captain/login')}
+            onClick={() => navigate('/radha/captain')}
             className="p-5 rounded-2xl bg-slate-900/90 border border-slate-800 hover:border-amber-400/50 hover:bg-slate-900 transition-all cursor-pointer group shadow-xl"
           >
             <div className="w-10 h-10 rounded-xl bg-amber-400/20 text-amber-300 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
@@ -469,14 +559,14 @@ export const AppRouter: React.FC = () => {
               High-speed touch station for floor captains. Live order queue, prep timers, customer additions, oral orders, and bill requests.
             </p>
             <div className="mt-4 text-xs font-semibold text-amber-300 flex items-center space-x-1">
-              <span>Enter Terminal</span>
+              <span>/radha/captain</span>
               <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
             </div>
           </div>
 
           {/* 4. Customer Experience */}
           <div
-            onClick={() => navigate('/heritage/t/1')}
+            onClick={() => navigate('/radha')}
             className="p-5 rounded-2xl bg-slate-900/90 border border-slate-800 hover:border-teal-500/50 hover:bg-slate-900 transition-all cursor-pointer group shadow-xl"
           >
             <div className="w-10 h-10 rounded-xl bg-teal-500/20 text-teal-400 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
@@ -490,7 +580,7 @@ export const AppRouter: React.FC = () => {
               QR-activated guest interface. Zero-install menu ordering, blind open tab, category grouping, and verified Instagram rewards.
             </p>
             <div className="mt-4 text-xs font-semibold text-teal-400 flex items-center space-x-1">
-              <span>View Table 1 Demo</span>
+              <span>/radha</span>
               <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
             </div>
           </div>

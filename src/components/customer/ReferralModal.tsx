@@ -14,8 +14,11 @@ export const ReferralModal: React.FC<ReferralModalProps> = ({ onClose }) => {
   const primaryColor = activeRestaurant.branding.primaryColor;
   const secondaryColor = activeRestaurant.branding.secondaryColor;
 
-  const referralCode = `HERITAGE-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
-  const referralLink = `https://${activeRestaurant.slug}.ensemble.com/ref/${referralCode}`;
+  const referralCode = `${activeRestaurant.slug.toUpperCase()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+  const origin = typeof window !== 'undefined' && window.location && window.location.hostname === 'localhost'
+    ? window.location.origin
+    : 'https://ensemble-restaurant.vercel.app';
+  const referralLink = `${origin}/${activeRestaurant.slug}?ref=${referralCode}`;
 
   const handleCopy = () => {
     navigator.clipboard.writeText(referralLink);

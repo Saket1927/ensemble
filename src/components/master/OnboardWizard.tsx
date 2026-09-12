@@ -119,7 +119,7 @@ export const OnboardWizard: React.FC<OnboardWizardProps> = ({ onClose }) => {
       address,
       phone,
       email,
-      website: `https://${cleanSlug}.ensemble.com`,
+      website: `https://ensemble-restaurant.vercel.app/${cleanSlug}`,
       googleReviewUrl: `https://g.page/r/${cleanSlug}/review`,
       branding: {
         primaryColor,
@@ -263,7 +263,7 @@ export const OnboardWizard: React.FC<OnboardWizardProps> = ({ onClose }) => {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-semibold text-slate-400 mb-1">
-                    Subdomain / Slug (e.g. heritage.ensemble.com)
+                    Restaurant Slug (e.g. heritage &rarr; /heritage)
                   </label>
                   <input
                     type="text"
@@ -715,12 +715,25 @@ export const OnboardWizard: React.FC<OnboardWizardProps> = ({ onClose }) => {
                 </div>
 
                 <div className="flex items-center justify-between text-xs">
-                  <span className="text-slate-400">Public Customer URL:</span>
+                  <span className="text-slate-400">Public Customer Menu:</span>
+                  <a
+                    href={`/${createdSlug}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="font-mono text-emerald-400 font-bold hover:underline flex items-center space-x-1"
+                  >
+                    <span>/{createdSlug}</span>
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
+                </div>
+
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-slate-400">Table 1 QR View:</span>
                   <a
                     href={`/${createdSlug}/t/1`}
                     target="_blank"
                     rel="noreferrer"
-                    className="font-mono text-emerald-400 font-bold hover:underline flex items-center space-x-1"
+                    className="font-mono text-teal-400 font-bold hover:underline flex items-center space-x-1"
                   >
                     <span>/{createdSlug}/t/1</span>
                     <ExternalLink className="w-3 h-3" />
@@ -728,8 +741,29 @@ export const OnboardWizard: React.FC<OnboardWizardProps> = ({ onClose }) => {
                 </div>
 
                 <div className="flex items-center justify-between text-xs">
-                  <span className="text-slate-400">Owner Login Portal:</span>
-                  <span className="font-mono text-slate-300">/restaurant/login</span>
+                  <span className="text-slate-400">Captain Floor Terminal:</span>
+                  <a
+                    href={`/${createdSlug}/captain`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="font-mono text-amber-300 font-bold hover:underline flex items-center space-x-1"
+                  >
+                    <span>/{createdSlug}/captain</span>
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
+                </div>
+
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-slate-400">Restaurant Admin:</span>
+                  <a
+                    href={`/${createdSlug}/admin`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="font-mono text-indigo-300 font-bold hover:underline flex items-center space-x-1"
+                  >
+                    <span>/{createdSlug}/admin</span>
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
                 </div>
 
                 <div className="flex items-center justify-between text-xs">
