@@ -22,8 +22,8 @@ export const MandatoryIdentityModal: React.FC<MandatoryIdentityModalProps> = ({ 
   const primaryColor = activeRestaurant.branding.primaryColor;
   const secondaryColor = activeRestaurant.branding.secondaryColor;
 
-  if (customerSession) {
-    return null; // Already authenticated
+  if (customerSession && customerSession.tableNumber === activeTable) {
+    return null; // Already authenticated for this table
   }
 
   const handleSubmit = (e: React.FormEvent) => {

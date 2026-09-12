@@ -8,8 +8,17 @@ interface CartItem {
   quantity: number;
 }
 
+import { PostOrderReviewModal } from './PostOrderReviewModal';
+
 export const CustomerMenu: React.FC = () => {
-  const { activeRestaurant, activeMenuItems, activeTable, placeCustomerOrder } = useTenant();
+  const {
+    activeRestaurant,
+    activeMenuItems,
+    activeTable,
+    placeCustomerOrder,
+    orders,
+    currentTableSession,
+  } = useTenant();
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [filterVegOnly, setFilterVegOnly] = useState<boolean>(false);
@@ -19,6 +28,7 @@ export const CustomerMenu: React.FC = () => {
   const [cart, setCart] = useState<Record<string, CartItem>>({});
   const [isReviewCartOpen, setIsReviewCartOpen] = useState<boolean>(false);
   const [orderPlacedSuccess, setOrderPlacedSuccess] = useState<boolean>(false);
+  const [showPostOrderReviewModal, setShowPostOrderReviewModal] = useState<boolean>(false);
 
   const primaryColor = activeRestaurant.branding.primaryColor;
   const secondaryColor = activeRestaurant.branding.secondaryColor;
@@ -74,6 +84,11 @@ export const CustomerMenu: React.FC = () => {
   const totalCartCount = cartList.reduce((sum, item) => sum + item.quantity, 0);
   const cartSubtotal = cartList.reduce((sum, item) => sum + item.dish.price * item.quantity, 0);
 
+  const tableOrders = orders.filter(
+    (o) => (o.restaurantId ? o.restaurantId === activeRestaurant.id : true) && o.tableNumber === activeTable && o.status !== 'cancelled'
+  );
+  const hasLiveTab = tableOrders.length > 0 || !!currentTableSession;
+
   const handlePlaceOrder = () => {
     if (cartList.length === 0) return;
 
@@ -89,14 +104,15 @@ export const CustomerMenu: React.FC = () => {
 
     setCart({});
     setOrderPlacedSuccess(true);
+    setIsReviewCartOpen(false);
     setTimeout(() => {
       setOrderPlacedSuccess(false);
-      setIsReviewCartOpen(false);
-    }, 2000);
+      setShowPostOrderReviewModal(true);
+    }, 1200);
   };
 
   return (
-    <div className="space-y-4 px-4 pt-2 pb-24 animate-fade-in relative">
+    <div className="space-y-4 px-4 pt-2 pb-40 animate-fade-in relative">
       {/* Header Title */}
       <div className="pt-2">
         <span
@@ -317,7 +333,7 @@ export const CustomerMenu: React.FC = () => {
 
       {/* Floating Cart Bar (Zomato/Swiggy UX, Section 6) */}
       {totalCartCount > 0 && (
-        <div className="fixed bottom-20 inset-x-0 z-30 px-4 max-w-md mx-auto pointer-events-none animate-slideUp">
+        <div className={`fixed ${hasLiveTab ? 'bottom-[136px]' : 'bottom-20'} inset-x-0 z-30 px-4 max-w-md mx-auto pointer-events-none animate-slideUp transition-all duration-300`}>
           <button
             onClick={() => setIsReviewCartOpen(true)}
             className="pointer-events-auto w-full py-3 px-4 rounded-2xl text-white shadow-2xl flex items-center justify-between transition-transform active:scale-98"
@@ -519,6 +535,11 @@ export const CustomerMenu: React.FC = () => {
           </div>
         </div>
       )}
+      {/* Post-Order Celebration & Instant Discount Review Modal */}
+      <PostOrderReviewModal
+        isOpen={showPostOrderReviewModal}
+        onClose={() => setShowPostOrderReviewModal(false)}
+      />
     </div>
   );
 };

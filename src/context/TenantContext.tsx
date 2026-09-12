@@ -390,6 +390,7 @@ interface TenantContextType {
   currentTableSession: TableSession | null;
   joinTableSession: (tableNumber: number, name: string, phone: string) => void;
   reassignSessionHost: (tableNumber: number, newHostName: string, newHostPhone: string) => void;
+  assignManualTable: (tableNumber: number, guestName: string, guestPhone: string, guestCount: number) => void;
 
   // Call Captain (Section 10)
   captainCalls: CaptainCall[];
@@ -404,6 +405,7 @@ interface TenantContextType {
   captainAddOrder: (tableNumber: number, items: { menuItemId: string; name: string; price: number; quantity: number }[]) => void;
   confirmOrder: (orderId: string, prepMinutes: 10 | 20 | 30) => void;
   deliverOrder: (orderId: string) => void;
+  deliverOrderItem: (orderId: string, itemId: string) => void;
   cancelOrder: (orderId: string) => void;
   removeOrderItem: (orderId: string, itemId: string) => void;
   askForBill: (tableNumber: number) => void;
@@ -507,6 +509,7 @@ const STORAGE_KEYS = {
   TABLE_HISTORY: 'ensemble_table_history_v3',
   BILL_CONFIGS: 'ensemble_bill_configs_v3',
   CLEAR_TABLE_AUDITS: 'ensemble_clear_table_audits_v3',
+  CUSTOMER_SESSION: 'ensemble_customer_session_v3',
 };
 
 export function rebalanceWheelProbabilities(
@@ -686,7 +689,9 @@ export const TenantProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   );
 
   // Customer Session & Geofence
-  const [customerSession, setCustomerSession] = useState<CustomerSessionState | null>(null);
+  const [customerSession, setCustomerSession] = useState<CustomerSessionState | null>(() =>
+    loadState<CustomerSessionState | null>(STORAGE_KEYS.CUSTOMER_SESSION, null)
+  );
   const [geofenceStatus, setGeofenceStatus] = useState<'checking' | 'passed' | 'failed' | 'requested_override' | 'overridden'>('passed');
 
   // Call Captain Cooldown
@@ -757,6 +762,13 @@ export const TenantProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEYS.CLEAR_TABLE_AUDITS, JSON.stringify(clearTableAudits));
   }, [clearTableAudits]);
+  useEffect(() => {
+    if (customerSession) {
+      localStorage.setItem(STORAGE_KEYS.CUSTOMER_SESSION, JSON.stringify(customerSession));
+    } else {
+      localStorage.removeItem(STORAGE_KEYS.CUSTOMER_SESSION);
+    }
+  }, [customerSession]);
 
   // Instant Cross-Tab Synchronization Listener
   useEffect(() => {
@@ -949,7 +961,27 @@ export const TenantProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
       if (type === 'ORDER_DELIVERED' && payload?.orderId) {
         setOrders((prev) =>
-          prev.map((o) => (o.id === payload.orderId ? { ...o, status: 'delivered' as const } : o))
+          prev.map((o) => {
+            if (o.id === payload.orderId) {
+              if (payload.itemId) {
+                const updatedItems = o.items.map((it) =>
+                  it.id === payload.itemId ? { ...it, status: 'delivered' as const, deliveredAt: new Date().toISOString() } : it
+                );
+                const allDelivered = updatedItems.every((it) => it.status === 'delivered');
+                return {
+                  ...o,
+                  status: allDelivered ? ('delivered' as const) : o.status,
+                  items: updatedItems,
+                };
+              }
+              return {
+                ...o,
+                status: 'delivered' as const,
+                items: o.items.map((it) => ({ ...it, status: 'delivered' as const, deliveredAt: new Date().toISOString() })),
+              };
+            }
+            return o;
+          })
         );
       }
 
@@ -1080,9 +1112,11 @@ export const TenantProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     }
   };
 
-  // Section 5: Customer Registration (No OTP, returning recognition)
+  // Section 5: Customer Registration (No OTP, returning recognition, 10-digit normalization)
   const registerCustomerSession = (name: string, phone: string, tableNumber: number) => {
-    const existing = activeCustomers.find((c) => c.phone.replace(/\s+/g, '') === phone.replace(/\s+/g, ''));
+    const cleanDigits = (p: string) => (p || '').replace(/\D/g, '').slice(-10);
+    const userClean = cleanDigits(phone);
+    const existing = activeCustomers.find((c) => cleanDigits(c.phone) === userClean);
     const isReturning = !!existing;
 
     // Check if table already has an active session
@@ -1096,13 +1130,17 @@ export const TenantProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     const sessionId = existingSession?.id || `sess_${Date.now()}`;
 
     if (!isPlaceholder && existingSession) {
-      isHost = existingSession.hostPhone.replace(/\s+/g, '') === phone.replace(/\s+/g, '');
-      if (!existingSession.members.some((m) => m.phone.replace(/\s+/g, '') === phone.replace(/\s+/g, ''))) {
+      const hostClean = cleanDigits(existingSession.hostPhone);
+      const matchesHostPhone = hostClean.length > 0 && userClean.length > 0 && hostClean === userClean;
+      const wasAlreadyHost = customerSession?.isHost === true && customerSession.tableNumber === tableNumber;
+      isHost = matchesHostPhone || wasAlreadyHost;
+
+      if (!existingSession.members.some((m) => cleanDigits(m.phone) === userClean)) {
         const newMember: SessionMember = {
           id: `mem_${Date.now()}`,
           name,
           phone,
-          isHost: false,
+          isHost,
           joinedAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         };
         finalMembers = [...existingSession.members, newMember];
@@ -1161,12 +1199,14 @@ export const TenantProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       }));
     }
 
-    setCustomerSession({
+    const sessionObj = {
       name,
       phone,
       isHost,
       tableNumber,
-    });
+    };
+    setCustomerSession(sessionObj);
+    localStorage.setItem(STORAGE_KEYS.CUSTOMER_SESSION, JSON.stringify(sessionObj));
 
     // Real-Time Broadcast for cross-device mobile-to-laptop synchronization
     if (activeRestaurant?.slug) {
@@ -1184,6 +1224,7 @@ export const TenantProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
   const logoutCustomerSession = () => {
     setCustomerSession(null);
+    localStorage.removeItem(STORAGE_KEYS.CUSTOMER_SESSION);
   };
 
   // Section 5: Geofencing Overrides
@@ -1250,6 +1291,55 @@ export const TenantProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     }
   };
 
+  const assignManualTable = (tableNumber: number, guestName: string, guestPhone: string, guestCount: number) => {
+    const finalName = guestName.trim() || `Walk-in Guest (Table ${tableNumber})`;
+    const finalPhone = guestPhone.trim() || 'Offline Walk-in';
+    const sessionId = `sess_manual_${tableNumber}_${Date.now()}`;
+    const newMember: SessionMember = {
+      id: `mem_${Date.now()}`,
+      name: finalName,
+      phone: finalPhone,
+      isHost: true,
+      joinedAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    };
+
+    const newSession: TableSession = {
+      id: sessionId,
+      restaurantId: activeRestaurantId,
+      tableNumber,
+      hostName: finalName,
+      hostPhone: finalPhone,
+      members: [newMember],
+      geofenceVerified: true,
+      geofenceOverridden: true,
+      status: 'active',
+      createdAt: new Date().toISOString(),
+    };
+
+    setTableSessions((prev) => ({
+      ...prev,
+      [activeRestaurantId]: [newSession, ...(prev[activeRestaurantId] || []).filter((s) => s.tableNumber !== tableNumber || s.status === 'closed')],
+    }));
+
+    setTablesMap((prev) => ({
+      ...prev,
+      [activeRestaurantId]: (prev[activeRestaurantId] || []).map((t) =>
+        t.tableNumber === tableNumber ? { ...t, status: 'occupied', totalScans: (t.totalScans || 0) + 1, lastScanned: 'Walk-in Assigned' } : t
+      ),
+    }));
+
+    if (activeRestaurant?.slug) {
+      realtimeHub.publish(activeRestaurant.slug, 'SESSION_CREATED', activeRestaurantId, {
+        hostName: finalName,
+        hostPhone: finalPhone,
+        members: [newMember],
+        sessionId,
+        status: 'active',
+        guestCount,
+      }, tableNumber);
+    }
+  };
+
   // Section 10: Call Captain (60s Cooldown)
   const callCaptain = (tableNumber: number) => {
     const now = Date.now();
@@ -1284,6 +1374,109 @@ export const TenantProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     );
   };
 
+  // Helper to record diner visit and table revenue ONLY when an order is actually placed
+  const updateOrderHistoryAndCustomer = (
+    tableNumber: number,
+    orderTotal: number,
+    itemNames: string[],
+    explicitName?: string,
+    explicitPhone?: string
+  ) => {
+    const todayDate = new Date().toISOString().split('T')[0];
+
+    // 1. Update Table History (orders count, revenue, and active visits)
+    setTableHistoryMap((prev) => {
+      const list = prev[activeRestaurantId] || [];
+      const existingDayIndex = list.findIndex(
+        (d) => d.date === todayDate && d.tableNumber === tableNumber
+      );
+      if (existingDayIndex >= 0) {
+        const copy = [...list];
+        copy[existingDayIndex] = {
+          ...copy[existingDayIndex],
+          orders: (copy[existingDayIndex].orders || 0) + 1,
+          revenue: (copy[existingDayIndex].revenue || 0) + orderTotal,
+          visits: Math.max(1, copy[existingDayIndex].visits || 1),
+        };
+        return { ...prev, [activeRestaurantId]: copy };
+      } else {
+        const newDay: TableDayHistory = {
+          date: todayDate,
+          displayDate: 'Today',
+          tableNumber,
+          restaurantId: activeRestaurantId,
+          qrScans: 1,
+          uniqueVisitors: 1,
+          totalPeople: 1,
+          visits: 1,
+          newCustomers: 1,
+          returningCustomers: 0,
+          orders: 1,
+          revenue: orderTotal,
+          averageSpend: orderTotal,
+          reviews: 0,
+          spins: 0,
+          couponsRedeemed: 0,
+          discountGiven: 0,
+          captainCalls: 0,
+          billRequests: 0,
+          sessions: [],
+        };
+        return { ...prev, [activeRestaurantId]: [newDay, ...list] };
+      }
+    });
+
+    // 2. Update Customers Map (Only when order is placed!)
+    const targetSession = (tableSessions[activeRestaurantId] || []).find(
+      (s) => s.tableNumber === tableNumber && (s.status === 'active' || s.status === 'bill_requested')
+    );
+    const guestName = explicitName || customerSession?.name || targetSession?.hostName || `Guest (Table ${tableNumber})`;
+    const guestPhone = explicitPhone || customerSession?.phone || targetSession?.hostPhone || '';
+
+    if (guestPhone && guestPhone !== 'Staff Added') {
+      setCustomersMap((prev) => {
+        const list = prev[activeRestaurantId] || [];
+        const cleanDigits = (p: string) => (p || '').replace(/\D/g, '').slice(-10);
+        const userClean = cleanDigits(guestPhone);
+        const existingIdx = list.findIndex((c) => cleanDigits(c.phone) === userClean);
+        if (existingIdx >= 0) {
+          const copy = [...list];
+          const newVisits = (copy[existingIdx].visits || 1) + 1;
+          const newTotalSpend = (copy[existingIdx].totalSpend || 0) + orderTotal;
+          copy[existingIdx] = {
+            ...copy[existingIdx],
+            name: guestName && !guestName.startsWith('Guest') ? guestName : copy[existingIdx].name,
+            totalSpend: newTotalSpend,
+            lastVisit: 'Today',
+            visits: newVisits,
+            averageBill: Math.round(newTotalSpend / newVisits),
+          };
+          return { ...prev, [activeRestaurantId]: copy };
+        } else {
+          const newCust: Customer = {
+            id: `cust_${Date.now()}`,
+            restaurantId: activeRestaurantId,
+            name: guestName,
+            phone: guestPhone,
+            totalSpend: orderTotal,
+            visits: 1,
+            averageBill: orderTotal,
+            reviewsCount: 0,
+            rewardsRedeemed: 0,
+            favoriteDishes: itemNames.slice(0, 2),
+            engagement: {
+              instagram: false,
+              whatsapp: true,
+            },
+            tags: [`Table ${tableNumber}`],
+            lastVisit: 'Today',
+          };
+          return { ...prev, [activeRestaurantId]: [newCust, ...list] };
+        }
+      });
+    }
+  };
+
   // Section 6 & 7 & 9: Ordering & Tab Management
   const placeCustomerOrder = (
     tableNumber: number,
@@ -1296,6 +1489,7 @@ export const TenantProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       price: it.price,
       quantity: it.quantity,
       source: 'customer',
+      status: 'preparing',
     }));
 
     const newOrder: CaptainOrder = {
@@ -1313,6 +1507,9 @@ export const TenantProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
     setOrders((prev) => [newOrder, ...prev]);
 
+    const orderTotal = items.reduce((sum, it) => sum + it.price * it.quantity, 0);
+    updateOrderHistoryAndCustomer(tableNumber, orderTotal, items.map((i) => i.name));
+
     if (activeRestaurant?.slug) {
       realtimeHub.publish(activeRestaurant.slug, 'ORDER_PLACED', activeRestaurantId, { order: newOrder }, tableNumber);
     }
@@ -1322,6 +1519,14 @@ export const TenantProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     tableNumber: number,
     items: { menuItemId: string; name: string; price: number; quantity: number }[]
   ) => {
+    // If table has no active session, auto-assign table
+    const existingSession = (tableSessions[activeRestaurantId] || []).find(
+      (s) => s.tableNumber === tableNumber && (s.status === 'active' || s.status === 'bill_requested')
+    );
+    if (!existingSession) {
+      assignManualTable(tableNumber, `Guest (Table ${tableNumber})`, 'Staff Added', 2);
+    }
+
     const orderItems: OrderItemEntry[] = items.map((it) => ({
       id: `item_cpt_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
       menuItemId: it.menuItemId,
@@ -1329,6 +1534,7 @@ export const TenantProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       price: it.price,
       quantity: it.quantity,
       source: 'captain', // Clearly marked Captain Added
+      status: 'preparing',
     }));
 
     const newOrder: CaptainOrder = {
@@ -1348,29 +1554,80 @@ export const TenantProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     };
 
     setOrders((prev) => [newOrder, ...prev]);
+
+    const orderTotal = items.reduce((sum, it) => sum + it.price * it.quantity, 0);
+    updateOrderHistoryAndCustomer(tableNumber, orderTotal, items.map((i) => i.name), 'Captain Order', 'Staff Added');
+
+    if (activeRestaurant?.slug) {
+      realtimeHub.publish(activeRestaurant.slug, 'ORDER_PLACED', activeRestaurantId, { order: newOrder }, tableNumber);
+    }
   };
 
   const confirmOrder = (orderId: string, prepMinutes: 10 | 20 | 30) => {
     const now = Date.now();
+    let orderTable = activeTable;
     setOrders((prev) =>
-      prev.map((o) =>
-        o.id === orderId
-          ? {
-              ...o,
-              status: 'preparing',
-              estimatedPrepMinutes: prepMinutes,
-              prepStartedAt: new Date(now).toISOString(),
-              prepExpiresAt: new Date(now + prepMinutes * 60000).toISOString(),
-            }
-          : o
-      )
+      prev.map((o) => {
+        if (o.id === orderId) {
+          orderTable = o.tableNumber;
+          return {
+            ...o,
+            status: 'preparing',
+            estimatedPrepMinutes: prepMinutes,
+            prepStartedAt: new Date(now).toISOString(),
+            prepExpiresAt: new Date(now + prepMinutes * 60000).toISOString(),
+          };
+        }
+        return o;
+      })
     );
+    if (activeRestaurant?.slug) {
+      realtimeHub.publish(activeRestaurant.slug, 'ORDER_CONFIRMED', activeRestaurantId, { orderId, prepMinutes }, orderTable);
+    }
   };
 
   const deliverOrder = (orderId: string) => {
+    let orderTable = activeTable;
     setOrders((prev) =>
-      prev.map((o) => (o.id === orderId ? { ...o, status: 'delivered' } : o))
+      prev.map((o) => {
+        if (o.id === orderId) {
+          orderTable = o.tableNumber;
+          return {
+            ...o,
+            status: 'delivered' as const,
+            items: o.items.map((it) => ({ ...it, status: 'delivered' as const, deliveredAt: new Date().toISOString() })),
+          };
+        }
+        return o;
+      })
     );
+    if (activeRestaurant?.slug) {
+      realtimeHub.publish(activeRestaurant.slug, 'ORDER_DELIVERED', activeRestaurantId, { orderId, status: 'delivered' }, orderTable);
+    }
+  };
+
+  const deliverOrderItem = (orderId: string, itemId: string) => {
+    let orderTable = activeTable;
+    setOrders((prev) =>
+      prev.map((o) => {
+        if (o.id === orderId) {
+          orderTable = o.tableNumber;
+          const updatedItems = o.items.map((it) =>
+            it.id === itemId ? { ...it, status: 'delivered' as const, deliveredAt: new Date().toISOString() } : it
+          );
+          const allDelivered = updatedItems.every((it) => it.status === 'delivered');
+          return {
+            ...o,
+            status: allDelivered ? ('delivered' as const) : o.status,
+            items: updatedItems,
+          };
+        }
+        return o;
+      })
+    );
+    if (activeRestaurant?.slug) {
+      realtimeHub.publish(activeRestaurant.slug, 'ORDER_DELIVERED', activeRestaurantId, { orderId, itemId, status: 'delivered' }, orderTable);
+    }
   };
 
   const cancelOrder = (orderId: string) => {
@@ -1435,9 +1692,18 @@ export const TenantProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     setTableSessions((prev) => ({
       ...prev,
       [activeRestaurantId]: (prev[activeRestaurantId] || []).map((s) =>
-        s.tableNumber === tableNumber && s.status !== 'closed' ? { ...s, status: 'closed' } : s
+        s.tableNumber === tableNumber && s.status !== 'closed' ? { ...s, status: 'closed', closedAt: new Date().toISOString() } : s
       ),
     }));
+    setOrders((prev) =>
+      prev.filter(
+        (o) =>
+          !(
+            o.tableNumber === tableNumber &&
+            (o.restaurantId ? o.restaurantId === activeRestaurantId : true)
+          )
+      )
+    );
     if (activeRestaurant?.slug) {
       realtimeHub.publish(activeRestaurant.slug, 'CLEAR_TABLE', activeRestaurantId, {}, tableNumber);
     }
@@ -2548,6 +2814,7 @@ export const TenantProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         currentTableSession,
         joinTableSession,
         reassignSessionHost,
+        assignManualTable,
 
         captainCalls,
         callCaptain,
@@ -2560,6 +2827,7 @@ export const TenantProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         captainAddOrder,
         confirmOrder,
         deliverOrder,
+        deliverOrderItem,
         cancelOrder,
         removeOrderItem,
         askForBill,

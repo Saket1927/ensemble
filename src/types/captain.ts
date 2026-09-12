@@ -52,6 +52,8 @@ export interface OrderItemEntry {
   source: 'customer' | 'captain'; // Section 9: clearly labeled "Captain Added" vs "Customer Order"
   notes?: string;
   removedByCaptain?: boolean;
+  status?: 'preparing' | 'delivered';
+  deliveredAt?: string;
 }
 
 export interface CaptainOrder {

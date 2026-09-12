@@ -21,6 +21,8 @@ import {
   ShieldCheck,
   Utensils,
   Eye,
+  Minus,
+  Users,
   X,
   LogOut,
   User,
@@ -40,9 +42,11 @@ export const CaptainLayout: React.FC = () => {
     acknowledgeCaptainCall,
     confirmOrder,
     deliverOrder,
+    deliverOrderItem,
     cancelOrder,
     removeOrderItem,
     captainAddOrder,
+    assignManualTable,
     closeTableTab,
     resetTable,
     forceCloseSession,
@@ -108,9 +112,17 @@ export const CaptainLayout: React.FC = () => {
   const [reassignName, setReassignName] = useState('');
   const [reassignPhone, setReassignPhone] = useState('');
 
-  // Manual Captain Order Input
-  const [captainDishSelect, setCaptainDishSelect] = useState(activeMenuItems[0]?.id || '');
-  const [captainDishQty, setCaptainDishQty] = useState(1);
+  // POS Visual Menu Picker state
+  const [menuSearch, setMenuSearch] = useState('');
+  const [menuSelectedCat, setMenuSelectedCat] = useState('All');
+  const [menuVegOnly, setMenuVegOnly] = useState(false);
+  const [stagedItems, setStagedItems] = useState<Record<string, number>>({});
+
+  // Walk-in Table Assignment state
+  const [showWalkinModal, setShowWalkinModal] = useState(false);
+  const [walkinName, setWalkinName] = useState('');
+  const [walkinPhone, setWalkinPhone] = useState('');
+  const [walkinGuests, setWalkinGuests] = useState(2);
 
   // Unacknowledged pending calls
   const pendingCalls = captainCalls.filter((c) => c.status === 'pending');
@@ -422,14 +434,35 @@ export const CaptainLayout: React.FC = () => {
                   )}
                 </div>
 
-                {/* Manual Captain Addition Button */}
-                <button
-                  onClick={() => setShowAddDishModal(true)}
-                  className="bg-amber-500 hover:bg-amber-400 text-slate-950 px-2.5 py-1.5 rounded-lg text-xs font-bold flex items-center space-x-1 shadow transition-colors"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>Add Items</span>
-                </button>
+                {/* Action Buttons: Walk-in Assignment & POS Menu */}
+                <div className="flex items-center space-x-2 shrink-0">
+                  {!selectedSession && (
+                    <button
+                      onClick={() => {
+                        setWalkinName('');
+                        setWalkinPhone('');
+                        setWalkinGuests(2);
+                        setShowWalkinModal(true);
+                      }}
+                      className="bg-emerald-600 hover:bg-emerald-500 text-white px-2.5 py-1.5 rounded-lg text-xs font-bold flex items-center space-x-1 shadow transition-colors"
+                      title="Assign an offline/walk-in diner directly to this table"
+                    >
+                      <Users className="w-3.5 h-3.5" />
+                      <span>Assign Walk-in</span>
+                    </button>
+                  )}
+                  <button
+                    onClick={() => {
+                      setStagedItems({});
+                      setMenuSearch('');
+                      setShowAddDishModal(true);
+                    }}
+                    className="bg-amber-500 hover:bg-amber-400 text-slate-950 px-2.5 py-1.5 rounded-lg text-xs font-bold flex items-center space-x-1 shadow transition-colors"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>POS Menu</span>
+                  </button>
+                </div>
               </div>
 
               {/* Multi-Person Joiners List (Section 5) */}
@@ -543,7 +576,7 @@ export const CaptainLayout: React.FC = () => {
                               key={item.id}
                               className="flex items-center justify-between text-xs py-1 border-b border-slate-900 last:border-0"
                             >
-                              <div className="flex items-center space-x-2">
+                              <div className="flex items-center space-x-2 flex-wrap gap-1">
                                 <span className="font-semibold text-slate-200">
                                   {item.quantity}x {item.name}
                                 </span>
@@ -552,6 +585,21 @@ export const CaptainLayout: React.FC = () => {
                                     Captain
                                   </span>
                                 )}
+                                {item.status === 'delivered' || order.status === 'delivered' ? (
+                                  <span className="text-[9px] text-emerald-400 font-bold bg-emerald-950/80 border border-emerald-800/50 px-1.5 py-0.5 rounded flex items-center space-x-0.5">
+                                    <CheckCircle2 className="w-2.5 h-2.5" />
+                                    <span>Served</span>
+                                  </span>
+                                ) : order.status === 'preparing' ? (
+                                  <button
+                                    onClick={() => deliverOrderItem(order.id, item.id)}
+                                    className="text-[9px] bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-1.5 py-0.5 rounded shadow flex items-center space-x-0.5 transition active:scale-95"
+                                    title="Mark dish delivered to table"
+                                  >
+                                    <CheckCircle2 className="w-2.5 h-2.5" />
+                                    <span>Deliver Dish</span>
+                                  </button>
+                                ) : null}
                               </div>
                               <div className="flex items-center space-x-2">
                                 <span className="text-slate-400">₹{item.price * item.quantity}</span>
@@ -602,7 +650,7 @@ export const CaptainLayout: React.FC = () => {
                               className="w-full bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold py-1 px-3 rounded shadow transition-colors flex items-center justify-center space-x-1"
                             >
                               <CheckCircle2 className="w-3.5 h-3.5" />
-                              <span>Mark Order Delivered</span>
+                              <span>Mark Entire Order Delivered</span>
                             </button>
                           ) : null}
                         </div>
@@ -649,30 +697,46 @@ export const CaptainLayout: React.FC = () => {
               {/* Payment & Table Reset Actions (Section 8 & 22) */}
               <div className="space-y-2 pt-2 border-t border-slate-800">
                 {selectedTableRecord?.status === 'bill_requested' || selectedTableRecord?.status === 'occupied' ? (
-                  <div className="grid grid-cols-2 gap-2">
-                    <button
-                      onClick={() => closeTableTab(selectedTableNumber, 'cash')}
-                      className="bg-emerald-600 hover:bg-emerald-500 text-white py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center space-x-1.5 shadow"
-                    >
-                      <Banknote className="w-4 h-4" />
-                      <span>Paid via Cash</span>
-                    </button>
-                    <button
-                      onClick={() => closeTableTab(selectedTableNumber, 'online')}
-                      className="bg-indigo-600 hover:bg-indigo-500 text-white py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center space-x-1.5 shadow"
-                    >
-                      <CreditCard className="w-4 h-4" />
-                      <span>Paid via Online</span>
-                    </button>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between text-xs text-slate-400">
+                      <span>Settle Bill & Complete Dining:</span>
+                      <span className="text-amber-400 font-bold">₹{totalBill}</span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        onClick={() => closeTableTab(selectedTableNumber, 'cash')}
+                        className="bg-emerald-600 hover:bg-emerald-500 text-white py-2.5 px-3 rounded-xl text-xs font-bold flex items-center justify-center space-x-1.5 shadow transition active:scale-95"
+                      >
+                        <Banknote className="w-4 h-4" />
+                        <span>Dining Complete (Cash)</span>
+                      </button>
+                      <button
+                        onClick={() => closeTableTab(selectedTableNumber, 'online')}
+                        className="bg-indigo-600 hover:bg-indigo-500 text-white py-2.5 px-3 rounded-xl text-xs font-bold flex items-center justify-center space-x-1.5 shadow transition active:scale-95"
+                      >
+                        <CreditCard className="w-4 h-4" />
+                        <span>Dining Complete (Online)</span>
+                      </button>
+                    </div>
                   </div>
                 ) : selectedTableRecord?.status === 'paid_pending_reset' ? (
-                  <button
-                    onClick={() => resetTable(selectedTableNumber)}
-                    className="w-full bg-amber-500 hover:bg-amber-400 text-slate-950 py-2.5 px-4 rounded-xl text-xs font-black flex items-center justify-center space-x-2 shadow-lg transition-transform active:scale-95"
-                  >
-                    <RotateCcw className="w-4 h-4" />
-                    <span>Reset Table (Sanitized & Ready)</span>
-                  </button>
+                  <div className="space-y-2">
+                    <div className="bg-purple-950/40 border border-purple-800/50 p-3 rounded-xl text-center space-y-1">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-purple-400 block">
+                        Dining Complete ✓
+                      </span>
+                      <p className="text-xs text-slate-300">
+                        Bill paid & dining finished. Clean and sanitize table for the next party.
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => resetTable(selectedTableNumber)}
+                      className="w-full bg-amber-500 hover:bg-amber-400 text-slate-950 py-3 px-4 rounded-xl text-xs font-black flex items-center justify-center space-x-2 shadow-lg transition-transform active:scale-95"
+                    >
+                      <RotateCcw className="w-4 h-4" />
+                      <span>Reset Table (Ready for Next Guests)</span>
+                    </button>
+                  </div>
                 ) : null}
 
                 {/* Section 22: CLEAR TABLE Action Button */}
@@ -693,73 +757,364 @@ export const CaptainLayout: React.FC = () => {
         </div>
       </div>
 
-      {/* Manual Add Dish Modal (Captain Oral Addition) */}
+      {/* POS Visual Menu Modal (Section 9: Full Visual Menu Picker with Fast Search & Counters) */}
       {showAddDishModal && selectedTableNumber && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-5 space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-base font-bold text-white">Manual Captain Order (T-{selectedTableNumber})</h3>
-              <button onClick={() => setShowAddDishModal(false)} className="text-slate-400 hover:text-white">
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 animate-fade-in">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl max-w-2xl w-full max-h-[90vh] flex flex-col overflow-hidden shadow-2xl">
+            {/* Header */}
+            <div className="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-950/80">
+              <div>
+                <div className="flex items-center space-x-2">
+                  <h3 className="text-base font-bold text-white">POS Menu Picker</h3>
+                  <span className="text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded-full">
+                    Table #{selectedTableNumber}
+                  </span>
+                </div>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Search & stage multiple dishes directly to table tab.
+                </p>
+              </div>
+              <button
+                onClick={() => setShowAddDishModal(false)}
+                className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition"
+              >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <p className="text-xs text-slate-400">
-              Direct table additions will be visually flagged as "Captain Added".
+            {/* Search and Filters */}
+            <div className="p-3 border-b border-slate-800 bg-slate-950/40 space-y-2">
+              <div className="flex items-center space-x-2">
+                <div className="relative flex-1">
+                  <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    value={menuSearch}
+                    onChange={(e) => setMenuSearch(e.target.value)}
+                    placeholder="Search dish by name..."
+                    className="w-full pl-9 pr-3 py-1.5 bg-slate-950 border border-slate-700 rounded-xl text-xs text-white placeholder:text-slate-500 focus:outline-none focus:border-amber-400"
+                  />
+                  {menuSearch && (
+                    <button
+                      onClick={() => setMenuSearch('')}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+
+                <button
+                  onClick={() => setMenuVegOnly(!menuVegOnly)}
+                  className={`px-2.5 py-1.5 rounded-xl text-xs font-semibold border flex items-center space-x-1.5 transition ${
+                    menuVegOnly
+                      ? 'bg-emerald-950/70 border-emerald-500 text-emerald-300'
+                      : 'bg-slate-950 border-slate-700 text-slate-400 hover:text-white'
+                  }`}
+                >
+                  <div className="w-2.5 h-2.5 border border-emerald-500 rounded-sm flex items-center justify-center p-0.5">
+                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                  </div>
+                  <span>Veg Only</span>
+                </button>
+              </div>
+
+              {/* Category Pills */}
+              <div className="flex items-center space-x-1.5 overflow-x-auto pb-1 no-scrollbar">
+                {['All', ...Array.from(new Set(activeMenuItems.map((d) => (d.category || 'Mains').trim()).filter(Boolean)))].map((cat) => (
+                  <button
+                    key={cat}
+                    onClick={() => setMenuSelectedCat(cat)}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-semibold whitespace-nowrap transition ${
+                      menuSelectedCat === cat
+                        ? 'bg-amber-500 text-slate-950 font-bold'
+                        : 'bg-slate-950 text-slate-400 hover:text-white border border-slate-800'
+                    }`}
+                  >
+                    {cat}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Dishes List */}
+            <div className="flex-1 overflow-y-auto p-3 space-y-2">
+              {activeMenuItems
+                .filter((dish) => {
+                  const matchesCat = menuSelectedCat === 'All' || (dish.category || 'Mains').toLowerCase() === menuSelectedCat.toLowerCase();
+                  const matchesSearch = !menuSearch || dish.name.toLowerCase().includes(menuSearch.toLowerCase());
+                  const matchesVeg = !menuVegOnly || dish.isVeg;
+                  return matchesCat && matchesSearch && matchesVeg;
+                })
+                .map((dish) => {
+                  const qty = stagedItems[dish.id] || 0;
+                  return (
+                    <div
+                      key={dish.id}
+                      className={`p-2.5 rounded-2xl border flex items-center justify-between transition ${
+                        qty > 0
+                          ? 'bg-amber-500/10 border-amber-500/50'
+                          : 'bg-slate-950/70 border-slate-800 hover:border-slate-700'
+                      }`}
+                    >
+                      <div className="flex items-center space-x-3 min-w-0 flex-1 pr-2">
+                        {/* Food Image / Fallback */}
+                        {dish.imageUrl ? (
+                          <img
+                            src={dish.imageUrl}
+                            alt={dish.name}
+                            className="w-12 h-12 rounded-xl object-cover border border-slate-800 shrink-0"
+                          />
+                        ) : (
+                          <div className="w-12 h-12 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-center text-amber-400 shrink-0">
+                            <Utensils className="w-5 h-5" />
+                          </div>
+                        )}
+
+                        <div className="min-w-0">
+                          <div className="flex items-center space-x-1.5">
+                            {dish.isVeg ? (
+                              <div className="w-3 h-3 border border-emerald-500 rounded-xs flex items-center justify-center p-0.5 shrink-0">
+                                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                              </div>
+                            ) : (
+                              <div className="w-3 h-3 border border-rose-500 rounded-xs flex items-center justify-center p-0.5 shrink-0">
+                                <div className="w-0 h-0 border-l-[3px] border-l-transparent border-r-[3px] border-r-transparent border-b-[5px] border-b-rose-500" />
+                              </div>
+                            )}
+                            <span className="font-bold text-xs text-white truncate block">
+                              {dish.name}
+                            </span>
+                          </div>
+                          <div className="flex items-center space-x-2 mt-0.5">
+                            <span className="text-[10px] text-slate-400">
+                              {dish.category || 'Mains'}
+                            </span>
+                            <span className="font-mono font-bold text-amber-400 text-xs">
+                              ₹{dish.price}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Quantity Controls */}
+                      <div className="flex items-center space-x-2 shrink-0">
+                        {qty > 0 ? (
+                          <div className="flex items-center space-x-2 bg-slate-900 border border-amber-500/40 rounded-xl px-2 py-1">
+                            <button
+                              onClick={() =>
+                                setStagedItems((prev) => {
+                                  const current = prev[dish.id] || 0;
+                                  if (current <= 1) {
+                                    const copy = { ...prev };
+                                    delete copy[dish.id];
+                                    return copy;
+                                  }
+                                  return { ...prev, [dish.id]: current - 1 };
+                                })
+                              }
+                              className="text-amber-400 hover:text-white p-0.5"
+                            >
+                              <Minus className="w-3.5 h-3.5" />
+                            </button>
+                            <span className="font-mono font-bold text-xs text-white px-1">
+                              {qty}
+                            </span>
+                            <button
+                              onClick={() =>
+                                setStagedItems((prev) => ({
+                                  ...prev,
+                                  [dish.id]: (prev[dish.id] || 0) + 1,
+                                }))
+                              }
+                              className="text-amber-400 hover:text-white p-0.5"
+                            >
+                              <Plus className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() =>
+                              setStagedItems((prev) => ({
+                                ...prev,
+                                [dish.id]: 1,
+                              }))
+                            }
+                            className="bg-slate-900 hover:bg-slate-800 text-amber-400 hover:text-white border border-slate-700 px-3 py-1.5 rounded-xl text-xs font-bold flex items-center space-x-1 transition"
+                          >
+                            <Plus className="w-3 h-3" />
+                            <span>Add</span>
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+            </div>
+
+            {/* Bottom Bar */}
+            {(() => {
+              const stagedEntries = Object.entries(stagedItems);
+              const totalItemsStaged = stagedEntries.reduce((sum, [, count]) => sum + count, 0);
+              const totalStagedPrice = stagedEntries.reduce((sum, [dishId, count]) => {
+                const d = activeMenuItems.find((m) => m.id === dishId);
+                return sum + (d ? d.price * count : 0);
+              }, 0);
+
+              return (
+                <div className="p-4 border-t border-slate-800 bg-slate-950 flex items-center justify-between gap-3">
+                  <div className="text-left">
+                    <span className="text-[11px] font-bold text-slate-400 block">
+                      {totalItemsStaged} dish{totalItemsStaged === 1 ? '' : 'es'} staged
+                    </span>
+                    <span className="font-mono font-bold text-white text-base">
+                      ₹{totalStagedPrice}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center space-x-2">
+                    {totalItemsStaged > 0 && (
+                      <button
+                        onClick={() => setStagedItems({})}
+                        className="px-3 py-2 rounded-xl text-xs font-semibold text-slate-400 hover:text-white border border-slate-800 hover:bg-slate-900 transition"
+                      >
+                        Clear
+                      </button>
+                    )}
+                    <button
+                      disabled={totalItemsStaged === 0}
+                      onClick={() => {
+                        const itemsToAdd = Object.entries(stagedItems).map(([dishId, quantity]) => {
+                          const dish = activeMenuItems.find((d) => d.id === dishId)!;
+                          return {
+                            menuItemId: dish.id,
+                            name: dish.name,
+                            price: dish.price,
+                            quantity,
+                          };
+                        });
+                        captainAddOrder(selectedTableNumber, itemsToAdd);
+                        setStagedItems({});
+                        setShowAddDishModal(false);
+                      }}
+                      className={`px-5 py-2.5 rounded-xl text-xs font-bold transition flex items-center space-x-1.5 shadow ${
+                        totalItemsStaged === 0
+                          ? 'bg-slate-800 text-slate-500 cursor-not-allowed'
+                          : 'bg-amber-500 hover:bg-amber-400 text-slate-950'
+                      }`}
+                    >
+                      <Plus className="w-4 h-4" />
+                      <span>Send to Kitchen (₹{totalStagedPrice})</span>
+                    </button>
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
+        </div>
+      )}
+
+      {/* Offline / Walk-in Table Assignment Modal */}
+      {showWalkinModal && selectedTableNumber && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl max-w-md w-full p-5 space-y-4 shadow-2xl">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <div className="w-8 h-8 rounded-lg bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 flex items-center justify-center">
+                  <Users className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-white">Manual Table Assignment</h3>
+                  <span className="text-[10px] font-bold text-amber-400">
+                    Table #{selectedTableNumber} (Offline / Walk-in)
+                  </span>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowWalkinModal(false)}
+                className="text-slate-400 hover:text-white"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-400 leading-relaxed">
+              Use this when guests dine in directly without scanning table QR standees. Opens an active live tab so you can take oral orders.
             </p>
 
-            <div>
-              <label className="text-xs text-slate-300 font-semibold mb-1 block">Select Dish</label>
-              <select
-                value={captainDishSelect}
-                onChange={(e) => setCaptainDishSelect(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white"
-              >
-                {activeMenuItems.map((dish) => (
-                  <option key={dish.id} value={dish.id}>
-                    {dish.name} (₹{dish.price})
-                  </option>
-                ))}
-              </select>
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs text-slate-300 font-semibold mb-1 block">
+                  Guest Name
+                </label>
+                <input
+                  type="text"
+                  value={walkinName}
+                  onChange={(e) => setWalkinName(e.target.value)}
+                  placeholder={`e.g. Walk-in Diner (T-${selectedTableNumber})`}
+                  className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:border-emerald-500"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs text-slate-300 font-semibold mb-1 block">
+                  Phone Number (Optional for Loyalty)
+                </label>
+                <input
+                  type="tel"
+                  value={walkinPhone}
+                  onChange={(e) => setWalkinPhone(e.target.value)}
+                  placeholder="e.g. +91 98200 55667"
+                  className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:border-emerald-500"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs text-slate-300 font-semibold mb-1 block">
+                  Guest Party Size
+                </label>
+                <div className="flex items-center space-x-2">
+                  {[1, 2, 3, 4, 6, 8].map((num) => (
+                    <button
+                      key={num}
+                      type="button"
+                      onClick={() => setWalkinGuests(num)}
+                      className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition border ${
+                        walkinGuests === num
+                          ? 'bg-emerald-500 text-slate-950 border-emerald-400'
+                          : 'bg-slate-950 text-slate-400 border-slate-800 hover:border-slate-700'
+                      }`}
+                    >
+                      {num}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
 
-            <div>
-              <label className="text-xs text-slate-300 font-semibold mb-1 block">Quantity</label>
-              <input
-                type="number"
-                min={1}
-                max={10}
-                value={captainDishQty}
-                onChange={(e) => setCaptainDishQty(Number(e.target.value))}
-                className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white"
-              />
-            </div>
-
-            <div className="flex items-center space-x-2 pt-2">
+            <div className="flex items-center space-x-2 pt-2 border-t border-slate-800">
               <button
-                onClick={() => setShowAddDishModal(false)}
-                className="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs py-2 rounded-lg"
+                onClick={() => setShowWalkinModal(false)}
+                className="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs py-2.5 rounded-xl font-semibold transition"
               >
                 Cancel
               </button>
               <button
                 onClick={() => {
-                  const dish = activeMenuItems.find((d) => d.id === captainDishSelect);
-                  if (dish) {
-                    captainAddOrder(selectedTableNumber, [
-                      {
-                        menuItemId: dish.id,
-                        name: dish.name,
-                        price: dish.price,
-                        quantity: captainDishQty,
-                      },
-                    ]);
-                  }
-                  setShowAddDishModal(false);
+                  assignManualTable(
+                    selectedTableNumber,
+                    walkinName.trim() || `Walk-in Guest (Table ${selectedTableNumber})`,
+                    walkinPhone.trim(),
+                    walkinGuests
+                  );
+                  setShowWalkinModal(false);
+                  setStagedItems({});
+                  setShowAddDishModal(true);
                 }}
-                className="flex-1 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs py-2 rounded-lg"
+                className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs py-2.5 rounded-xl shadow transition active:scale-95 flex items-center justify-center space-x-1"
               >
-                Add to Live Tab
+                <span>Assign & Open POS</span>
+                <ChevronRight className="w-4 h-4" />
               </button>
             </div>
           </div>

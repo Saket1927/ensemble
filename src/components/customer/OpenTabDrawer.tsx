@@ -167,7 +167,7 @@ export const OpenTabDrawer: React.FC<OpenTabDrawerProps> = ({ onOpenMenuToAdd })
         price: item.price,
         quantity: item.quantity,
         source: item.source || order.source,
-        orderStatus: order.status,
+        orderStatus: item.status === 'delivered' || order.status === 'delivered' ? 'delivered' : (item.status || order.status),
         imageUrl: matchMenu?.imageUrl,
         category: matchMenu?.category || 'Mains',
       });
@@ -415,9 +415,21 @@ export const OpenTabDrawer: React.FC<OpenTabDrawerProps> = ({ onOpenMenuToAdd })
 
                               {/* Status Badge (NO PRICES DISPLAYED!) */}
                               <div className="shrink-0 ml-2">
-                                <span className="px-2 py-0.5 rounded text-[9px] font-bold capitalize bg-white text-slate-700 border border-slate-300">
-                                  {it.orderStatus}
-                                </span>
+                                {it.orderStatus === 'delivered' ? (
+                                  <span className="px-2 py-0.5 rounded text-[9px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300 flex items-center space-x-1 shadow-xs">
+                                    <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                                    <span>Served ✓</span>
+                                  </span>
+                                ) : it.orderStatus === 'preparing' ? (
+                                  <span className="px-2 py-0.5 rounded text-[9px] font-bold bg-blue-50 text-blue-700 border border-blue-200 flex items-center space-x-1">
+                                    <Clock className="w-3 h-3 text-blue-500 animate-spin" />
+                                    <span>Preparing</span>
+                                  </span>
+                                ) : (
+                                  <span className="px-2 py-0.5 rounded text-[9px] font-bold capitalize bg-white text-slate-700 border border-slate-300">
+                                    {it.orderStatus}
+                                  </span>
+                                )}
                               </div>
                             </div>
                           ))}
