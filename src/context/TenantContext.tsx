@@ -464,6 +464,9 @@ interface TenantContextType {
   rejectSocialSubmission: (id: string) => void;
 
   updateRewardItem: (id: string, updates: Partial<RewardWheelItem>) => void;
+  addRewardItem: (item: Omit<RewardWheelItem, 'id'>) => RewardWheelItem;
+  deleteRewardItem: (id: string) => void;
+  saveRewardConfiguration: (restaurantId: string, items: RewardWheelItem[]) => boolean;
   createOffer: (offer: Omit<Offer, 'id' | 'usedCount'>) => void;
   toggleOfferActive: (id: string) => void;
 
@@ -505,6 +508,75 @@ const STORAGE_KEYS = {
   BILL_CONFIGS: 'ensemble_bill_configs_v3',
   CLEAR_TABLE_AUDITS: 'ensemble_clear_table_audits_v3',
 };
+
+export function rebalanceWheelProbabilities(
+  items: RewardWheelItem[],
+  fixedId?: string,
+  fixedProb?: number
+): RewardWheelItem[] {
+  const active = items.filter((i) => i.active);
+  if (active.length === 0) return items;
+
+  if (active.length === 1) {
+    return items.map((i) =>
+      i.active ? { ...i, probability: 100 } : { ...i, probability: 0 }
+    );
+  }
+
+  if (fixedId !== undefined && fixedProb !== undefined) {
+    const clamped = Math.max(0, Math.min(100, Math.round(fixedProb * 10) / 10));
+    const remaining = Math.round((100 - clamped) * 10) / 10;
+    const others = active.filter((i) => i.id !== fixedId);
+    const m = others.length;
+
+    if (m === 0) {
+      return items.map((i) =>
+        i.id === fixedId ? { ...i, probability: 100 } : { ...i, probability: 0 }
+      );
+    }
+
+    const base = Math.floor((remaining / m) * 10) / 10;
+    let distributed = 0;
+    const shareMap = new Map<string, number>();
+
+    others.forEach((item, idx) => {
+      if (idx === m - 1) {
+        const last = Math.round((remaining - distributed) * 10) / 10;
+        shareMap.set(item.id, Math.max(0, last));
+      } else {
+        distributed = Math.round((distributed + base) * 10) / 10;
+        shareMap.set(item.id, Math.max(0, base));
+      }
+    });
+
+    return items.map((item) => {
+      if (!item.active) return { ...item, probability: 0 };
+      if (item.id === fixedId) return { ...item, probability: clamped };
+      return { ...item, probability: shareMap.get(item.id) ?? 0 };
+    });
+  }
+
+  const count = active.length;
+  const base = Math.floor((100 / count) * 10) / 10;
+  let distributed = 0;
+  const shareMap = new Map<string, number>();
+
+  active.forEach((item, idx) => {
+    if (idx === count - 1) {
+      const last = Math.round((100 - distributed) * 10) / 10;
+      shareMap.set(item.id, Math.max(0, last));
+    } else {
+      distributed = Math.round((distributed + base) * 10) / 10;
+      shareMap.set(item.id, Math.max(0, base));
+    }
+  });
+
+  return items.map((item) =>
+    item.active
+      ? { ...item, probability: shareMap.get(item.id) ?? 0 }
+      : { ...item, probability: 0 }
+  );
+}
 
 export const TenantProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [role, setRole] = useState<TenantRole>('customer');
@@ -685,6 +757,28 @@ export const TenantProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEYS.CLEAR_TABLE_AUDITS, JSON.stringify(clearTableAudits));
   }, [clearTableAudits]);
+
+  // Instant Cross-Tab Synchronization Listener
+  useEffect(() => {
+    const handleStorage = (e: StorageEvent) => {
+      if (!e.newValue) return;
+      try {
+        if (e.key === STORAGE_KEYS.MENU) {
+          setMenuItemsMap(JSON.parse(e.newValue));
+        } else if (e.key === STORAGE_KEYS.REWARDS) {
+          setRewardItemsMap(JSON.parse(e.newValue));
+        } else if (e.key === STORAGE_KEYS.RESTAURANTS) {
+          setRestaurants(JSON.parse(e.newValue));
+        } else if (e.key === STORAGE_KEYS.TABLES) {
+          setTablesMap(JSON.parse(e.newValue));
+        }
+      } catch {
+        // ignore JSON parse errors
+      }
+    };
+    window.addEventListener('storage', handleStorage);
+    return () => window.removeEventListener('storage', handleStorage);
+  }, []);
 
   // Resolve active restaurant
   const activeRestaurant =
@@ -905,6 +999,22 @@ export const TenantProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         setCaptainCalls((prev) =>
           prev.filter((c) => !(c.restaurantId === targetRestId && c.tableNumber === tableNumber))
         );
+      }
+
+      if (type === 'MENU_SYNC' && payload?.menuItems) {
+        const targetRestId = restaurantId || activeRestaurantId;
+        setMenuItemsMap((prev) => ({
+          ...prev,
+          [targetRestId]: payload.menuItems,
+        }));
+      }
+
+      if (type === 'SPIN_CONFIG_SYNC' && payload?.rewardItems) {
+        const targetRestId = restaurantId || activeRestaurantId;
+        setRewardItemsMap((prev) => ({
+          ...prev,
+          [targetRestId]: payload.rewardItems,
+        }));
       }
     });
 
@@ -1778,7 +1888,7 @@ export const TenantProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     const slug = (newRest.slug || newRest.name || 'restaurant')
       .toLowerCase()
       .replace(/[^a-z0-9]/g, '');
-    const id = `rest_${slug}_${Date.now().toString().slice(-4)}`;
+    const id = newRest.id || `rest_${slug}`;
 
     const fullRest: Restaurant = {
       id,
@@ -2031,30 +2141,73 @@ export const TenantProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   };
 
   const addMenuItem = (item: Omit<MenuItem, 'id'>) => {
+    const targetRestId = item.restaurantId || activeRestaurantId;
     const newItem: MenuItem = {
       ...item,
-      id: `dish_${Date.now()}`,
+      id: `dish_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      restaurantId: targetRestId,
+      isAvailable: item.isAvailable !== false,
+      rating: item.rating || 4.8,
     };
-    setMenuItemsMap((prev) => ({
-      ...prev,
-      [activeRestaurantId]: [newItem, ...(prev[activeRestaurantId] || [])],
-    }));
+    setMenuItemsMap((prev) => {
+      const currentList = prev[targetRestId] || [];
+      const updated = [newItem, ...currentList];
+      const nextMap = { ...prev, [targetRestId]: updated };
+      try {
+        localStorage.setItem(STORAGE_KEYS.MENU, JSON.stringify(nextMap));
+      } catch (err) {
+        console.error('Failed to write menu to localStorage:', err);
+      }
+      realtimeHub.publish(
+        activeRestaurantSlug,
+        'MENU_SYNC',
+        targetRestId,
+        { menuItems: updated }
+      );
+      return nextMap;
+    });
   };
 
   const updateMenuItem = (id: string, updates: Partial<MenuItem>) => {
-    setMenuItemsMap((prev) => ({
-      ...prev,
-      [activeRestaurantId]: (prev[activeRestaurantId] || []).map((dish) =>
+    setMenuItemsMap((prev) => {
+      const currentList = prev[activeRestaurantId] || [];
+      const updated = currentList.map((dish) =>
         dish.id === id ? { ...dish, ...updates } : dish
-      ),
-    }));
+      );
+      const nextMap = { ...prev, [activeRestaurantId]: updated };
+      try {
+        localStorage.setItem(STORAGE_KEYS.MENU, JSON.stringify(nextMap));
+      } catch (err) {
+        console.error('Failed to write menu to localStorage:', err);
+      }
+      realtimeHub.publish(
+        activeRestaurantSlug,
+        'MENU_SYNC',
+        activeRestaurantId,
+        { menuItems: updated }
+      );
+      return nextMap;
+    });
   };
 
   const deleteMenuItem = (id: string) => {
-    setMenuItemsMap((prev) => ({
-      ...prev,
-      [activeRestaurantId]: (prev[activeRestaurantId] || []).filter((dish) => dish.id !== id),
-    }));
+    setMenuItemsMap((prev) => {
+      const currentList = prev[activeRestaurantId] || [];
+      const updated = currentList.filter((dish) => dish.id !== id);
+      const nextMap = { ...prev, [activeRestaurantId]: updated };
+      try {
+        localStorage.setItem(STORAGE_KEYS.MENU, JSON.stringify(nextMap));
+      } catch (err) {
+        console.error('Failed to write menu to localStorage:', err);
+      }
+      realtimeHub.publish(
+        activeRestaurantSlug,
+        'MENU_SYNC',
+        activeRestaurantId,
+        { menuItems: updated }
+      );
+      return nextMap;
+    });
   };
 
   const batchImportMenuItems = (items: Omit<MenuItem, 'id'>[], conflictResolution: 'keep' | 'overwrite') => {
@@ -2068,18 +2221,33 @@ export const TenantProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       );
       if (matchIndex >= 0) {
         if (conflictResolution === 'overwrite') {
-          updated[matchIndex] = { ...newItem, id: updated[matchIndex].id };
+          updated[matchIndex] = { ...newItem, id: updated[matchIndex].id, restaurantId: activeRestaurantId };
           count++;
         }
       } else {
-        updated.push({ ...newItem, id: `dish_${Date.now()}_${count++}` });
+        updated.push({
+          ...newItem,
+          id: `dish_${Date.now()}_${count++}`,
+          restaurantId: activeRestaurantId,
+          isAvailable: newItem.isAvailable !== false,
+          rating: newItem.rating || 4.8,
+        });
       }
     });
 
-    setMenuItemsMap((prev) => ({
-      ...prev,
-      [activeRestaurantId]: updated,
-    }));
+    const nextMap = { ...menuItemsMap, [activeRestaurantId]: updated };
+    setMenuItemsMap(nextMap);
+    try {
+      localStorage.setItem(STORAGE_KEYS.MENU, JSON.stringify(nextMap));
+    } catch (err) {
+      console.error('Failed to write menu to localStorage:', err);
+    }
+    realtimeHub.publish(
+      activeRestaurantSlug,
+      'MENU_SYNC',
+      activeRestaurantId,
+      { menuItems: updated }
+    );
 
     return { importedCount: count };
   };
@@ -2144,13 +2312,119 @@ export const TenantProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     }));
   };
 
+  const addRewardItem = (item: Omit<RewardWheelItem, 'id'>): RewardWheelItem => {
+    const newItem: RewardWheelItem = {
+      ...item,
+      id: `rwd_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      active: item.active !== false,
+      probability: item.probability || 0,
+    };
+    const currentList = rewardItemsMap[activeRestaurantId] || [];
+    const withNew = [...currentList, newItem];
+    const balanced = rebalanceWheelProbabilities(withNew);
+
+    const nextMap = { ...rewardItemsMap, [activeRestaurantId]: balanced };
+    setRewardItemsMap(nextMap);
+    try {
+      localStorage.setItem(STORAGE_KEYS.REWARDS, JSON.stringify(nextMap));
+    } catch (err) {
+      console.error('Failed to write rewards to localStorage:', err);
+    }
+    realtimeHub.publish(
+      activeRestaurantSlug,
+      'SPIN_CONFIG_SYNC',
+      activeRestaurantId,
+      { rewardItems: balanced }
+    );
+    return newItem;
+  };
+
+  const deleteRewardItem = (id: string) => {
+    const currentList = rewardItemsMap[activeRestaurantId] || [];
+    const filtered = currentList.filter((item) => item.id !== id);
+    const balanced = rebalanceWheelProbabilities(filtered);
+
+    const nextMap = { ...rewardItemsMap, [activeRestaurantId]: balanced };
+    setRewardItemsMap(nextMap);
+    try {
+      localStorage.setItem(STORAGE_KEYS.REWARDS, JSON.stringify(nextMap));
+    } catch (err) {
+      console.error('Failed to write rewards to localStorage:', err);
+    }
+    realtimeHub.publish(
+      activeRestaurantSlug,
+      'SPIN_CONFIG_SYNC',
+      activeRestaurantId,
+      { rewardItems: balanced }
+    );
+  };
+
   const updateRewardItem = (id: string, updates: Partial<RewardWheelItem>) => {
-    setRewardItemsMap((prev) => ({
-      ...prev,
-      [activeRestaurantId]: (prev[activeRestaurantId] || []).map((item) =>
+    setRewardItemsMap((prev) => {
+      const currentList = prev[activeRestaurantId] || [];
+      const updated = currentList.map((item) =>
         item.id === id ? { ...item, ...updates } : item
-      ),
-    }));
+      );
+      return { ...prev, [activeRestaurantId]: updated };
+    });
+  };
+
+  const saveRewardConfiguration = (restaurantId: string, items: RewardWheelItem[]): boolean => {
+    const targetRestId = restaurantId || activeRestaurantId;
+    if (!items || items.length === 0) return false;
+
+    // Validate
+    for (const item of items) {
+      if (!item.label || item.label.trim() === '') return false;
+      if (item.probability < 0 || item.probability > 100 || isNaN(item.probability)) return false;
+    }
+
+    const activeList = items.filter((i) => i.active);
+    if (activeList.length === 0) return false;
+
+    const total = activeList.reduce((sum, i) => sum + i.probability, 0);
+    // Strict tolerance: within 0.5%
+    if (Math.abs(total - 100) > 0.5) {
+      return false;
+    }
+
+    // Normalize so last active item guarantees exact 100.0 sum
+    let activeSum = 0;
+    const finalItems = items.map((item, idx) => {
+      if (!item.active) return { ...item, probability: 0 };
+      return item;
+    });
+
+    const activeIndexes: number[] = [];
+    finalItems.forEach((item, idx) => {
+      if (item.active) activeIndexes.push(idx);
+    });
+
+    if (activeIndexes.length > 0) {
+      let runSum = 0;
+      for (let i = 0; i < activeIndexes.length - 1; i++) {
+        runSum = Math.round((runSum + finalItems[activeIndexes[i]].probability) * 10) / 10;
+      }
+      const lastIdx = activeIndexes[activeIndexes.length - 1];
+      finalItems[lastIdx].probability = Math.max(0, Math.round((100 - runSum) * 10) / 10);
+    }
+
+    const nextMap = { ...rewardItemsMap, [targetRestId]: finalItems };
+    setRewardItemsMap(nextMap);
+    try {
+      localStorage.setItem(STORAGE_KEYS.REWARDS, JSON.stringify(nextMap));
+    } catch (err) {
+      console.error('Failed to write rewards to localStorage:', err);
+    }
+
+    realtimeHub.publish(
+      activeRestaurantSlug,
+      'SPIN_CONFIG_SYNC',
+      targetRestId,
+      { rewardItems: finalItems }
+    );
+
+    return true;
   };
 
   const createOffer = (offer: Omit<Offer, 'id' | 'usedCount'>) => {
@@ -2328,6 +2602,9 @@ export const TenantProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         rejectSocialSubmission,
 
         updateRewardItem,
+        addRewardItem,
+        deleteRewardItem,
+        saveRewardConfiguration,
         createOffer,
         toggleOfferActive,
 

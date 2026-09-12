@@ -30,7 +30,7 @@ interface OnboardWizardProps {
 }
 
 export const OnboardWizard: React.FC<OnboardWizardProps> = ({ onClose }) => {
-  const { addRestaurant, setActiveRestaurantSlug } = useTenant();
+  const { addRestaurant, addMenuItem, setActiveRestaurantSlug } = useTenant();
   const { createStaffAccount } = useAuth();
 
   const [step, setStep] = useState<number>(1);
@@ -163,6 +163,37 @@ export const OnboardWizard: React.FC<OnboardWizardProps> = ({ onClose }) => {
       restaurantSlug: created.slug,
       phone,
     });
+
+    // Populate initial dishes configured in Step 4
+    if (starterName && starterName.trim()) {
+      addMenuItem({
+        restaurantId: created.id,
+        name: starterName.trim(),
+        category: 'Starters',
+        description: `Signature culinary starter prepared fresh at ${name}.`,
+        price: starterPrice || 350,
+        imageUrl: 'https://images.unsplash.com/photo-1546833999-b9f581a1996d?auto=format&fit=crop&w=800&q=80',
+        isVeg: true,
+        isChefSpecial: true,
+        isAvailable: true,
+        rating: 4.9,
+      });
+    }
+
+    if (mainName && mainName.trim()) {
+      addMenuItem({
+        restaurantId: created.id,
+        name: mainName.trim(),
+        category: 'Mains',
+        description: `Exquisite signature main course prepared fresh at ${name}.`,
+        price: mainPrice || 550,
+        imageUrl: 'https://images.unsplash.com/photo-1585937421612-70a008356fbe?auto=format&fit=crop&w=800&q=80',
+        isVeg: false,
+        isChefSpecial: true,
+        isAvailable: true,
+        rating: 4.9,
+      });
+    }
 
     setCreatedSlug(created.slug);
     setStep(9);

@@ -22,7 +22,9 @@ export type RealtimeEventType =
   | 'CALL_CAPTAIN'
   | 'RESOLVE_CALL'
   | 'BILL_REQUESTED'
-  | 'CLEAR_TABLE';
+  | 'CLEAR_TABLE'
+  | 'MENU_SYNC'
+  | 'SPIN_CONFIG_SYNC';
 
 export interface RealtimeEnvelope<T = any> {
   id: string;
@@ -225,7 +227,7 @@ class RealtimeHub {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 3500);
 
-      const res = await fetch(`https://ntfy.sh/${topic}/json?poll=1&since=15m`, {
+      const res = await fetch(`https://ntfy.sh/${topic}/json?poll=1&since=24h`, {
         signal: controller.signal,
       });
       clearTimeout(timeoutId);

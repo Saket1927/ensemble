@@ -23,17 +23,22 @@ export const CustomerMenu: React.FC = () => {
   const primaryColor = activeRestaurant.branding.primaryColor;
   const secondaryColor = activeRestaurant.branding.secondaryColor;
 
-  // Extract unique categories
-  const categories = ['All', ...Array.from(new Set(activeMenuItems.map((item) => item.category)))];
+  // Extract unique categories cleanly
+  const categories = [
+    'All',
+    ...Array.from(new Set(activeMenuItems.map((item) => (item.category || 'Mains').trim()).filter(Boolean))),
+  ];
 
   // Filtered dishes
   const filteredDishes = activeMenuItems.filter((dish) => {
-    const matchesCategory = selectedCategory === 'All' || dish.category === selectedCategory;
+    const dishCat = (dish.category || 'Mains').trim().toLowerCase();
+    const matchesCategory =
+      selectedCategory === 'All' || dishCat === selectedCategory.trim().toLowerCase();
     const matchesSearch =
       dish.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      dish.description.toLowerCase().includes(searchQuery.toLowerCase());
+      (dish.description || '').toLowerCase().includes(searchQuery.toLowerCase());
     const matchesVeg = !filterVegOnly || dish.isVeg;
-    return matchesCategory && matchesSearch && matchesVeg && dish.isAvailable;
+    return matchesCategory && matchesSearch && matchesVeg;
   });
 
   // Cart helper actions
@@ -178,11 +183,16 @@ export const CustomerMenu: React.FC = () => {
         ) : (
           filteredDishes.map((dish) => {
             const inCartQty = cart[dish.id]?.quantity || 0;
+            const isAvailable = dish.isAvailable !== false;
+            const fallbackImage =
+              'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=600&q=80';
 
             return (
               <div
                 key={dish.id}
-                className="bg-white rounded-2xl p-3 border border-slate-200/90 shadow-sm hover:shadow-md transition-all flex space-x-3 group"
+                className={`bg-white rounded-2xl p-3 border border-slate-200/90 shadow-sm hover:shadow-md transition-all flex space-x-3 group ${
+                  !isAvailable ? 'opacity-70' : ''
+                }`}
               >
                 {/* Dish Image */}
                 <div
@@ -190,14 +200,24 @@ export const CustomerMenu: React.FC = () => {
                   className="w-24 h-24 sm:w-28 sm:h-28 rounded-xl overflow-hidden shrink-0 relative bg-slate-100 cursor-pointer"
                 >
                   <img
-                    src={dish.imageUrl}
+                    src={dish.imageUrl || fallbackImage}
                     alt={dish.name}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = fallbackImage;
+                    }}
+                    className={`w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ${
+                      !isAvailable ? 'grayscale opacity-75' : ''
+                    }`}
                   />
-                  {dish.isChefSpecial && (
+                  {dish.isChefSpecial && isAvailable && (
                     <span className="absolute top-1.5 left-1.5 bg-amber-400/90 text-slate-950 font-bold text-[8px] uppercase tracking-wider px-1.5 py-0.5 rounded shadow-sm flex items-center space-x-0.5">
                       <Sparkles className="w-2.5 h-2.5" />
                       <span>Special</span>
+                    </span>
+                  )}
+                  {!isAvailable && (
+                    <span className="absolute bottom-1.5 left-1.5 bg-rose-600 text-white font-bold text-[8px] uppercase tracking-wider px-1.5 py-0.5 rounded shadow-sm">
+                      Sold Out
                     </span>
                   )}
                 </div>
@@ -217,7 +237,7 @@ export const CustomerMenu: React.FC = () => {
                         </div>
                       )}
                       <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400">
-                        {dish.category}
+                        {dish.category || 'Mains'}
                       </span>
                       {dish.rating && (
                         <span className="text-[10px] text-amber-600 font-bold ml-auto flex items-center">
@@ -244,7 +264,11 @@ export const CustomerMenu: React.FC = () => {
                     </span>
 
                     {/* Quantity Stepper or Add Button */}
-                    {inCartQty > 0 ? (
+                    {!isAvailable ? (
+                      <span className="px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider bg-slate-100 text-slate-400 border border-slate-200">
+                        Sold Out
+                      </span>
+                    ) : inCartQty > 0 ? (
                       <div className="flex items-center space-x-2 bg-emerald-50 border border-emerald-300 rounded-lg px-2 py-1 text-emerald-900 shadow-sm">
                         <button
                           onClick={(e) => {
@@ -394,14 +418,25 @@ export const CustomerMenu: React.FC = () => {
               <div className="pt-2">
                 <button
                   onClick={() => {
-                    addToCart(selectedDish);
-                    setSelectedDish(null);
+                    if (selectedDish.isAvailable !== false) {
+                      addToCart(selectedDish);
+                      setSelectedDish(null);
+                    }
                   }}
-                  className="w-full py-3 rounded-xl font-bold text-xs uppercase tracking-wider text-white shadow-md transition flex items-center justify-center space-x-2"
-                  style={{ backgroundColor: primaryColor }}
+                  disabled={selectedDish.isAvailable === false}
+                  className={`w-full py-3 rounded-xl font-bold text-xs uppercase tracking-wider text-white shadow-md transition flex items-center justify-center space-x-2 ${
+                    selectedDish.isAvailable === false ? 'bg-slate-300 text-slate-500 cursor-not-allowed' : ''
+                  }`}
+                  style={{
+                    backgroundColor: selectedDish.isAvailable === false ? undefined : primaryColor,
+                  }}
                 >
                   <Plus className="w-4 h-4" />
-                  <span>Add to Order (₹{selectedDish.price})</span>
+                  <span>
+                    {selectedDish.isAvailable === false
+                      ? 'Item Currently Sold Out'
+                      : `Add to Order (₹${selectedDish.price})`}
+                  </span>
                 </button>
               </div>
             </div>
