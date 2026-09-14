@@ -29,6 +29,7 @@ import {
   Camera,
   CameraOff,
   Phone,
+  Tag,
 } from 'lucide-react';
 import jsQR from 'jsqr';
 import { useAuth } from '../../context/AuthContext';
@@ -61,6 +62,9 @@ export const CaptainLayout: React.FC = () => {
     redeemCoupon,
     setActiveRestaurantSlug,
     restaurants,
+    applyDiscountToTable,
+    recordTableSpinWon,
+    activeRewardItems,
   } = useTenant();
 
   // Enforce Captain restaurant isolation
@@ -152,13 +156,28 @@ export const CaptainLayout: React.FC = () => {
 
   const gstAmount = Math.round((subtotal * gstRate) / 100);
   const serviceAmount = Math.round((subtotal * serviceRate) / 100);
-  const totalBill = subtotal > 0 ? subtotal + gstAmount + serviceAmount + packaging : 0;
+  const appliedDiscountAmount = selectedSession?.appliedDiscount?.amount || 0;
+  const totalBill = subtotal > 0 ? Math.max(0, subtotal + gstAmount + serviceAmount + packaging - appliedDiscountAmount) : 0;
 
   // Filtered tables
   const filteredTables = activeTables.filter((table) => {
     if (filterStatus === 'all') return true;
     return table.status === filterStatus;
   });
+
+  // Apply Discount Modal State (Req 43-48)
+  const [discountModalOpen, setDiscountModalOpen] = useState<boolean>(false);
+  const [discountSearchPhone, setDiscountSearchPhone] = useState<string>('');
+  const [discountInputCode, setDiscountInputCode] = useState<string>('');
+  const [discountError, setDiscountError] = useState<string | null>(null);
+  const [discountSuccess, setDiscountSuccess] = useState<string | null>(null);
+  const [discountTab, setDiscountTab] = useState<'phone' | 'code'>('phone');
+
+  // Offer Spin Modal State (Req 29 & 30)
+  const [showCaptainSpinModal, setShowCaptainSpinModal] = useState<boolean>(false);
+  const [captainSpinWinnerName, setCaptainSpinWinnerName] = useState<string>('');
+  const [captainSpinWinnerPhone, setCaptainSpinWinnerPhone] = useState<string>('');
+  const [captainSpinSelectedRewardId, setCaptainSpinSelectedRewardId] = useState<string>('');
 
   const [isCameraActive, setIsCameraActive] = useState<boolean>(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
@@ -533,17 +552,51 @@ export const CaptainLayout: React.FC = () => {
                         </button>
                       </div>
                       {selectedSession.spinStatus === 'completed' && selectedSession.spinReward ? (
-                        <div className="inline-flex items-center space-x-1.5 px-2 py-0.5 bg-amber-500/20 border border-amber-500/40 rounded text-xs font-semibold text-amber-300">
-                          <Sparkles className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-                          <span>Spin Reward: <strong className="text-white">{selectedSession.spinReward.label}</strong></span>
-                          {selectedSession.spinWinnerName && (
-                            <span className="text-[10px] text-amber-300/80">({selectedSession.spinWinnerName})</span>
+                        <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                          <div className="inline-flex items-center space-x-1.5 px-2 py-0.5 bg-amber-500/20 border border-amber-500/40 rounded text-xs font-semibold text-amber-300">
+                            <Sparkles className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                            <span>Spin Reward: <strong className="text-white">{selectedSession.spinReward.label}</strong></span>
+                            {selectedSession.spinWinnerName && (
+                              <span className="text-[10px] text-amber-300/80">({selectedSession.spinWinnerName})</span>
+                            )}
+                          </div>
+                          {!selectedSession.appliedDiscount && (
+                            <button
+                              onClick={() => {
+                                const foundCoup = unifiedCoupons.find(
+                                  (c) =>
+                                    c.restaurantId === activeRestaurant.id &&
+                                    (c.voucherCode === selectedSession.spinReward?.code ||
+                                      (selectedSession.spinWinnerPhone && c.customerPhone === selectedSession.spinWinnerPhone))
+                                );
+                                if (foundCoup) {
+                                  applyDiscountToTable(selectedTableNumber, foundCoup.id);
+                                } else {
+                                  applyDiscountToTable(selectedTableNumber, selectedSession.spinReward?.code || '');
+                                }
+                              }}
+                              className="px-2 py-0.5 rounded bg-amber-400 hover:bg-amber-300 text-slate-950 font-bold text-[10px] shadow transition active:scale-95 cursor-pointer"
+                            >
+                              Apply to Bill &rarr;
+                            </button>
                           )}
                         </div>
                       ) : (
-                        <div className="inline-flex items-center space-x-1 px-2 py-0.5 bg-slate-800/80 border border-slate-700/60 rounded text-[10px] text-slate-400">
-                          <Sparkles className="w-3 h-3 text-amber-400/60 shrink-0" />
-                          <span>Spin &amp; Win: Available</span>
+                        <div className="flex items-center space-x-2 pt-0.5">
+                          <div className="inline-flex items-center space-x-1 px-2 py-0.5 bg-slate-800/80 border border-slate-700/60 rounded text-[10px] text-slate-400">
+                            <Sparkles className="w-3 h-3 text-amber-400/60 shrink-0" />
+                            <span>Spin &amp; Win: Available</span>
+                          </div>
+                          <button
+                            onClick={() => {
+                              setCaptainSpinWinnerName(selectedSession.hostName);
+                              setCaptainSpinWinnerPhone(selectedSession.hostPhone);
+                              setShowCaptainSpinModal(true);
+                            }}
+                            className="px-2 py-0.5 rounded bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-300 font-bold text-[10px] transition active:scale-95 cursor-pointer"
+                          >
+                            Offer Spin &amp; Win
+                          </button>
                         </div>
                       )}
                     </div>
@@ -800,9 +853,32 @@ export const CaptainLayout: React.FC = () => {
                     <span>₹{packaging}</span>
                   </div>
                 )}
+                {selectedSession?.appliedDiscount && (
+                  <div className="flex justify-between text-emerald-400 font-bold bg-emerald-950/40 px-2 py-1 rounded border border-emerald-800/40">
+                    <span>Discount ({selectedSession.appliedDiscount.label})</span>
+                    <span>-₹{selectedSession.appliedDiscount.amount}</span>
+                  </div>
+                )}
                 <div className="flex justify-between text-sm font-bold text-white border-t border-slate-800 pt-1.5">
                   <span>Current Total</span>
                   <span className="text-amber-400">₹{totalBill}</span>
+                </div>
+
+                {/* Apply Offer / Add Discount Action (Req 43-48) */}
+                <div className="pt-2 border-t border-slate-800/60">
+                  <button
+                    onClick={() => {
+                      setDiscountModalOpen(true);
+                      setDiscountSearchPhone(selectedSession?.hostPhone || '');
+                      setDiscountInputCode('');
+                      setDiscountError(null);
+                      setDiscountSuccess(null);
+                    }}
+                    className="w-full py-2 px-3 rounded-lg text-xs font-bold bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 flex items-center justify-center space-x-1.5 transition active:scale-95 cursor-pointer"
+                  >
+                    <Tag className="w-3.5 h-3.5 text-amber-400" />
+                    <span>{selectedSession?.appliedDiscount ? 'Change / Re-apply Discount' : 'Apply Offer / Add Discount'}</span>
+                  </button>
                 </div>
               </div>
 
@@ -1638,6 +1714,309 @@ export const CaptainLayout: React.FC = () => {
               >
                 <Trash2 className="w-4 h-4" />
                 <span>Confirm Clear Table</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Apply Offer & Discount to Table Modal (Req 43-48) */}
+      {discountModalOpen && selectedTableNumber && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-amber-500/40 rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div className="flex items-center space-x-2.5">
+                <div className="w-8 h-8 rounded-lg bg-amber-500/20 border border-amber-500/40 text-amber-400 flex items-center justify-center">
+                  <Tag className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-white">Apply Offer / Add Discount</h3>
+                  <p className="text-xs text-amber-300">Table #{selectedTableNumber} • Active Bill Discount</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setDiscountModalOpen(false)}
+                className="text-slate-400 hover:text-white p-1 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Tabs */}
+            <div className="flex items-center space-x-2 bg-slate-950 p-1 rounded-xl border border-slate-800">
+              <button
+                type="button"
+                onClick={() => setDiscountTab('phone')}
+                className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition ${
+                  discountTab === 'phone'
+                    ? 'bg-amber-500 text-slate-950 shadow'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                Search Diner Phone
+              </button>
+              <button
+                type="button"
+                onClick={() => setDiscountTab('code')}
+                className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition ${
+                  discountTab === 'code'
+                    ? 'bg-amber-500 text-slate-950 shadow'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                Enter Voucher Code
+              </button>
+            </div>
+
+            {discountSuccess && (
+              <div className="p-3 rounded-xl text-xs font-semibold bg-emerald-950/50 text-emerald-300 border border-emerald-500/40 flex items-center space-x-2">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                <span>{discountSuccess}</span>
+              </div>
+            )}
+
+            {discountError && (
+              <div className="p-3 rounded-xl text-xs font-semibold bg-rose-950/50 text-rose-300 border border-rose-500/40 flex items-center space-x-2">
+                <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0" />
+                <span>{discountError}</span>
+              </div>
+            )}
+
+            {discountTab === 'phone' ? (
+              <div className="space-y-3">
+                <div className="flex items-center space-x-2">
+                  <div className="relative flex-1">
+                    <Phone className="w-4 h-4 text-slate-500 absolute left-3 top-2.5" />
+                    <input
+                      type="text"
+                      placeholder="Diner phone (e.g. 98200 11223)..."
+                      value={discountSearchPhone}
+                      onChange={(e) => setDiscountSearchPhone(e.target.value)}
+                      className="w-full pl-9 pr-3 py-2 bg-slate-950 text-white text-xs border border-slate-700 rounded-xl focus:outline-none focus:ring-1 focus:ring-amber-500"
+                    />
+                  </div>
+                  {selectedSession?.hostPhone && discountSearchPhone !== selectedSession.hostPhone && (
+                    <button
+                      type="button"
+                      onClick={() => setDiscountSearchPhone(selectedSession.hostPhone)}
+                      className="px-2.5 py-2 bg-slate-800 text-slate-300 text-xs font-semibold rounded-xl hover:bg-slate-700"
+                    >
+                      Use Host
+                    </button>
+                  )}
+                </div>
+
+                <div className="max-h-60 overflow-y-auto space-y-2 pr-1">
+                  {unifiedCoupons
+                    .filter(
+                      (c) =>
+                        c.restaurantId === activeRestaurant.id &&
+                        c.status === 'held' &&
+                        (!discountSearchPhone.trim() ||
+                          c.customerPhone.replace(/\D/g, '').includes(discountSearchPhone.replace(/\D/g, '')))
+                    )
+                    .map((coupon) => (
+                      <div
+                        key={coupon.id}
+                        className="p-3 rounded-xl bg-slate-950 border border-slate-800 flex items-center justify-between gap-2"
+                      >
+                        <div>
+                          <div className="flex items-center space-x-2">
+                            <span className="font-mono text-xs font-bold text-amber-400 bg-amber-950/60 px-1.5 py-0.5 rounded border border-amber-800/60">
+                              {coupon.voucherCode}
+                            </span>
+                            <span className="text-[10px] text-slate-400 capitalize">
+                              {coupon.source.replace(/_/g, ' ')}
+                            </span>
+                          </div>
+                          <p className="text-xs font-bold text-white mt-1">{coupon.rewardLabel}</p>
+                          <span className="text-[10px] text-slate-500">
+                            Expires: {coupon.expiresAt?.slice(0, 10) || '20 Days'}
+                          </span>
+                        </div>
+
+                        <button
+                          onClick={() => {
+                            const res = applyDiscountToTable(selectedTableNumber, coupon.id);
+                            if (res.success) {
+                              setDiscountSuccess(res.message);
+                              setTimeout(() => {
+                                setDiscountModalOpen(false);
+                                setDiscountSuccess(null);
+                              }, 1500);
+                            } else {
+                              setDiscountError(res.message);
+                            }
+                          }}
+                          className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow transition active:scale-95 shrink-0 cursor-pointer"
+                        >
+                          Apply to Bill
+                        </button>
+                      </div>
+                    ))}
+
+                  {unifiedCoupons.filter(
+                    (c) =>
+                      c.restaurantId === activeRestaurant.id &&
+                      c.status === 'held' &&
+                      (!discountSearchPhone.trim() ||
+                        c.customerPhone.replace(/\D/g, '').includes(discountSearchPhone.replace(/\D/g, '')))
+                  ).length === 0 && (
+                    <div className="py-8 text-center text-xs text-slate-500">
+                      No active, held vouchers found for this phone number.
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-300 mb-1">
+                    Voucher / Discount Code
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. HRTG-REV48 or FEAST15"
+                    value={discountInputCode}
+                    onChange={(e) => setDiscountInputCode(e.target.value.toUpperCase())}
+                    className="w-full px-3 py-2 bg-slate-950 font-mono text-white text-xs border border-slate-700 rounded-xl focus:outline-none focus:ring-1 focus:ring-amber-500"
+                  />
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!discountInputCode.trim()) return;
+                    const res = applyDiscountToTable(selectedTableNumber, discountInputCode.trim());
+                    if (res.success) {
+                      setDiscountSuccess(res.message);
+                      setTimeout(() => {
+                        setDiscountModalOpen(false);
+                        setDiscountSuccess(null);
+                      }, 1500);
+                    } else {
+                      setDiscountError(res.message);
+                    }
+                  }}
+                  className="w-full py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs shadow transition active:scale-95 cursor-pointer"
+                >
+                  Verify &amp; Apply Discount to Table #{selectedTableNumber}
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Offer Spin & Win to Table Modal (Req 29 & 30) */}
+      {showCaptainSpinModal && selectedTableNumber && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-amber-500/40 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div className="flex items-center space-x-2.5">
+                <div className="w-8 h-8 rounded-lg bg-amber-500/20 border border-amber-500/40 text-amber-400 flex items-center justify-center">
+                  <Sparkles className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-white">Offer Spin &amp; Win to Table</h3>
+                  <p className="text-xs text-amber-300">Table #{selectedTableNumber} • Gamified Dining Reward</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowCaptainSpinModal(false)}
+                className="text-slate-400 hover:text-white p-1 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <div>
+                <label className="block text-slate-300 font-bold mb-1">
+                  Winner / Guest Name *
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Rahul Sharma"
+                  value={captainSpinWinnerName}
+                  onChange={(e) => setCaptainSpinWinnerName(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-950 text-white border border-slate-700 rounded-xl focus:outline-none focus:ring-1 focus:ring-amber-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-slate-300 font-bold mb-1">
+                  Winner Phone Number (for Voucher Delivery)
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. +91 98200 11223"
+                  value={captainSpinWinnerPhone}
+                  onChange={(e) => setCaptainSpinWinnerPhone(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-950 text-white border border-slate-700 rounded-xl focus:outline-none focus:ring-1 focus:ring-amber-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-slate-300 font-bold mb-1">
+                  Select Reward or Random Wheel Spin
+                </label>
+                <select
+                  value={captainSpinSelectedRewardId}
+                  onChange={(e) => setCaptainSpinSelectedRewardId(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-950 text-white border border-slate-700 rounded-xl focus:outline-none focus:ring-1 focus:ring-amber-500"
+                >
+                  <option value="">🎲 Random Wheel Probability Spin</option>
+                  {activeRewardItems
+                    .filter((r) => r.active && r.discountType !== 'no_luck')
+                    .map((item) => (
+                      <option key={item.id} value={item.id}>
+                        {item.label} ({item.discountType === 'percentage' ? `${item.discountValue}% OFF` : `₹${item.discountValue} OFF`})
+                      </option>
+                    ))}
+                </select>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  let chosenReward = activeRewardItems.find((r) => r.id === captainSpinSelectedRewardId);
+                  if (!chosenReward) {
+                    // Weighted random spin
+                    const activeSlices = activeRewardItems.filter((r) => r.active);
+                    const rand = Math.random() * 100;
+                    let accum = 0;
+                    for (const sl of activeSlices) {
+                      accum += sl.probability || 0;
+                      if (rand <= accum) {
+                        chosenReward = sl;
+                        break;
+                      }
+                    }
+                    if (!chosenReward) chosenReward = activeSlices[0];
+                  }
+
+                  const name = captainSpinWinnerName.trim() || selectedSession?.hostName || `Guest (Table ${selectedTableNumber})`;
+                  const phone = captainSpinWinnerPhone.trim() || selectedSession?.hostPhone || 'Staff Spin';
+                  const code = `${activeRestaurant.name.replace(/[^a-zA-Z]/g, '').slice(0, 4).toUpperCase()}-SPIN${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+
+                  const rewardPayload = {
+                    label: chosenReward.label,
+                    code,
+                    discountType: chosenReward.discountType,
+                    discountValue: chosenReward.discountValue,
+                  };
+
+                  recordTableSpinWon(selectedTableNumber, name, phone, rewardPayload);
+                  setShowCaptainSpinModal(false);
+                  setClearNotification(`Spin & Win completed for Table ${selectedTableNumber}! Won: ${chosenReward.label}`);
+                  setTimeout(() => setClearNotification(null), 4000);
+                }}
+                className="w-full py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs shadow transition active:scale-95 flex items-center justify-center space-x-1.5 cursor-pointer mt-2"
+              >
+                <Sparkles className="w-4 h-4" />
+                <span>Confirm &amp; Award Spin to Table</span>
               </button>
             </div>
           </div>

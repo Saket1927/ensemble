@@ -34,7 +34,7 @@ export const PostOrderReviewModal: React.FC<PostOrderReviewModalProps> = ({
     activeTable,
     customerSession,
     addReview,
-    addCustomerReward,
+    activeReviewRewardConfig,
   } = useTenant();
 
   const [rating, setRating] = useState<number>(5);
@@ -50,6 +50,7 @@ export const PostOrderReviewModal: React.FC<PostOrderReviewModalProps> = ({
 
   const primaryColor = activeRestaurant.branding.primaryColor || '#162c21';
   const secondaryColor = activeRestaurant.branding.secondaryColor || '#c5a96d';
+  const rewardLabel = activeReviewRewardConfig?.rewardLabel || '10% OFF Dining Privilege';
 
   const toggleTag = (tag: string) => {
     setSelectedTags((prev) =>
@@ -78,25 +79,14 @@ export const PostOrderReviewModal: React.FC<PostOrderReviewModalProps> = ({
       .filter(Boolean)
       .join(' ') || 'Exceptional culinary experience!';
 
-    // 1. Submit review
+    // 1. Submit review (which dynamically awards the configured reward)
+    const discountCode = `${activeRestaurant.name.replace(/[^a-zA-Z]/g, '').slice(0, 4).toUpperCase()}-REV${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+
     addReview({
       restaurantId: activeRestaurant.id,
       customerName: reviewerName.trim() || customerSession?.name || 'Verified Diner',
       rating,
       comment: fullComment,
-    });
-
-    // 2. Award instant reward / discount code into diner wallet
-    const discountCode = `${activeRestaurant.name.replace(/[^a-zA-Z]/g, '').slice(0, 4).toUpperCase()}-REV15`;
-    addCustomerReward({
-      restaurantId: activeRestaurant.id,
-      code: discountCode,
-      rewardLabel: '15% OFF Dining Review Privilege',
-      discountType: 'percentage',
-      discountValue: 15,
-      expiresAt: 'Valid 7 Days',
-      status: 'active',
-      qrData: `${discountCode}-T${activeTable}`,
       tableNumber: activeTable,
     });
 
@@ -114,7 +104,7 @@ export const PostOrderReviewModal: React.FC<PostOrderReviewModalProps> = ({
         >
           <button
             onClick={onClose}
-            className="absolute top-4 right-4 text-white/70 hover:text-white p-1 rounded-full hover:bg-white/10 transition"
+            className="absolute top-4 right-4 text-white/70 hover:text-white p-1 rounded-full hover:bg-white/10 transition cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
@@ -139,7 +129,7 @@ export const PostOrderReviewModal: React.FC<PostOrderReviewModalProps> = ({
           <p className="text-xs text-white/80 mt-1 max-w-xs mx-auto">
             {rewardClaimed
               ? 'Thank you for your valuable feedback. Your reward is ready in your wallet!'
-              : 'Leave a quick dining review & unlock an instant 15% discount for your table!'}
+              : `Leave a quick dining review & unlock: ${rewardLabel}!`}
           </p>
         </div>
 
@@ -156,7 +146,7 @@ export const PostOrderReviewModal: React.FC<PostOrderReviewModalProps> = ({
                   Privilege Code Generated
                 </span>
                 <h3 className="font-serif text-xl font-bold text-slate-900 mt-2">
-                  15% OFF Voucher Saved
+                  {rewardLabel} Saved
                 </h3>
                 <p className="text-xs text-slate-500 mt-1">
                   Applicable towards your current session or next visit at {activeRestaurant.name}.
@@ -282,10 +272,10 @@ export const PostOrderReviewModal: React.FC<PostOrderReviewModalProps> = ({
                 </div>
                 <div className="text-left">
                   <p className="text-xs font-bold text-amber-900">
-                    Instant 15% OFF Reward
+                    {rewardLabel}
                   </p>
                   <p className="text-[10px] text-amber-700">
-                    Submitting your review automatically credits this discount coupon.
+                    Submitting your review automatically credits this dining privilege into your wallet.
                   </p>
                 </div>
               </div>

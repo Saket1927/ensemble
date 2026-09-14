@@ -67,10 +67,77 @@ const SEED_GLOBAL_CUSTOMERS: MasterGlobalCustomer[] = [
 ];
 
 export const GlobalCustomersDirectory: React.FC = () => {
+  const { restaurants } = useTenant();
   const [search, setSearch] = useState('');
   const [selectedCustomer, setSelectedCustomer] = useState<MasterGlobalCustomer | null>(null);
 
-  const filtered = SEED_GLOBAL_CUSTOMERS.filter(
+  const consolidatedCustomers: MasterGlobalCustomer[] = React.useMemo(() => {
+    const cleanDigits = (p: string) => (p || '').replace(/\D/g, '').slice(-10);
+    const map = new Map<string, MasterGlobalCustomer>();
+
+    for (const seed of SEED_GLOBAL_CUSTOMERS) {
+      const key = cleanDigits(seed.phone);
+      if (key) map.set(key, { ...seed });
+    }
+
+    // Read all customers saved across all restaurant tenants from localStorage
+    try {
+      const saved = localStorage.getItem('ensemble_customers_v3');
+      if (saved) {
+        const parsed: Record<string, any[]> = JSON.parse(saved);
+        for (const [restId, custList] of Object.entries(parsed)) {
+          const restObj = restaurants.find((r) => r.id === restId || `rest_${r.slug}` === restId);
+          const restName = restObj ? restObj.name.toUpperCase() : restId.replace('rest_', '').toUpperCase();
+
+          if (Array.isArray(custList)) {
+            for (const cust of custList) {
+              const key = cleanDigits(cust.phone);
+              if (!key || key.length < 10) continue;
+
+              const existing = map.get(key);
+              if (existing) {
+                const updatedNames = existing.restaurantNames.includes(restName)
+                  ? existing.restaurantNames
+                  : [...existing.restaurantNames, restName];
+                const updatedVisits = Math.max(existing.totalLifetimeVisits, existing.totalLifetimeVisits + (cust.visits || 1));
+                const updatedSpend = existing.totalLifetimeSpend + (cust.totalSpend || 0);
+
+                map.set(key, {
+                  ...existing,
+                  name: cust.name && !cust.name.startsWith('Guest') ? cust.name : existing.name,
+                  restaurantNames: updatedNames,
+                  totalRestaurantsFrequented: updatedNames.length,
+                  totalLifetimeVisits: updatedVisits,
+                  totalLifetimeSpend: updatedSpend,
+                  averageSpendPerVisit: Math.round(updatedSpend / Math.max(1, updatedVisits)),
+                  lastSeenAt: cust.lastVisit ? `${cust.lastVisit} at ${restName}` : existing.lastSeenAt,
+                });
+              } else {
+                map.set(key, {
+                  phone: cust.phone || `+91 ${key}`,
+                  name: cust.name || 'Diner',
+                  totalRestaurantsFrequented: 1,
+                  restaurantNames: [restName],
+                  totalLifetimeVisits: cust.visits || 1,
+                  totalLifetimeSpend: cust.totalSpend || cust.averageBill || 1200,
+                  averageSpendPerVisit: cust.averageBill || 1200,
+                  totalReviewsWritten: cust.reviewsCount || 0,
+                  totalRewardsRedeemed: cust.rewardsRedeemed || 0,
+                  lastSeenAt: cust.lastVisit ? `${cust.lastVisit} at ${restName}` : `Recently at ${restName}`,
+                });
+              }
+            }
+          }
+        }
+      }
+    } catch (e) {
+      console.error('Failed to parse global customers:', e);
+    }
+
+    return Array.from(map.values()).sort((a, b) => b.totalLifetimeSpend - a.totalLifetimeSpend);
+  }, [restaurants]);
+
+  const filtered = consolidatedCustomers.filter(
     (c) =>
       c.name.toLowerCase().includes(search.toLowerCase()) ||
       c.phone.includes(search) ||

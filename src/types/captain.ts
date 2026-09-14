@@ -41,6 +41,14 @@ export interface TableSession {
     discountType: string;
     discountValue: number;
   };
+  appliedDiscount?: {
+    amount: number;
+    label: string;
+    code: string;
+    type: 'percentage' | 'fixed' | 'free_item';
+    menuItemId?: string;
+    menuItemName?: string;
+  };
 }
 
 export interface CaptainCall {

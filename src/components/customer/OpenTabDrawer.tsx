@@ -99,7 +99,9 @@ export const OpenTabDrawer: React.FC<OpenTabDrawerProps> = ({ onOpenMenuToAdd })
 
   const gstAmount = Math.round((subtotal * gstRate) / 100);
   const serviceAmount = Math.round((subtotal * serviceRate) / 100);
-  const totalAmount = subtotal > 0 ? subtotal + gstAmount + serviceAmount + packaging : 0;
+  const appliedDiscount = currentTableSession?.appliedDiscount;
+  const appliedDiscountAmount = appliedDiscount?.amount || 0;
+  const totalAmount = subtotal > 0 ? Math.max(0, subtotal + gstAmount + serviceAmount + packaging - appliedDiscountAmount) : 0;
 
   // Total items count across all orders
   const totalItemsCount = tableOrders.reduce((sum, ord) => {
@@ -554,6 +556,12 @@ export const OpenTabDrawer: React.FC<OpenTabDrawerProps> = ({ onOpenMenuToAdd })
                       <div className="flex justify-between">
                         <span>Packaging &amp; Cutlery Fee</span>
                         <span className="font-mono">₹{packaging}</span>
+                      </div>
+                    )}
+                    {appliedDiscount && (
+                      <div className="flex justify-between text-emerald-700 font-bold bg-emerald-50 px-2 py-1 rounded border border-emerald-200">
+                        <span>Discount ({appliedDiscount.label})</span>
+                        <span className="font-mono">-₹{appliedDiscount.amount}</span>
                       </div>
                     )}
                     <div className="flex justify-between text-sm font-bold text-slate-900 border-t border-slate-300 pt-2 mt-1">

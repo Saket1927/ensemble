@@ -20,6 +20,7 @@ import {
   TableDayHistory,
   ClearTableAuditLog,
   BillConfiguration,
+  ReviewRewardConfig,
 } from '../types/tenant';
 import {
   StaffRole,
@@ -342,6 +343,51 @@ const DEFAULT_BILL_CONFIGS: Record<string, BillConfiguration> = {
   },
 };
 
+// Default Review Reward Configurations
+const DEFAULT_REVIEW_REWARDS: Record<string, ReviewRewardConfig> = {
+  rest_heritage: {
+    restaurantId: 'rest_heritage',
+    enabled: true,
+    rewardLabel: '10% OFF Royal Dining',
+    description: 'Enjoy 10% off your dining bill upon submitting a verified review',
+    discountType: 'percentage',
+    discountValue: 10,
+    minOrderAmount: 500,
+    expiryDays: 20,
+  },
+  rest_bambai: {
+    restaurantId: 'rest_bambai',
+    enabled: true,
+    rewardLabel: 'Free Bambai Cutting Chai & Bun Maska',
+    description: 'Complimentary chai & fresh bun maska with your meal',
+    discountType: 'free_item',
+    discountValue: 150,
+    freeMenuItemName: 'Cutting Chai & Bun Maska',
+    minOrderAmount: 300,
+    expiryDays: 14,
+  },
+  rest_table: {
+    restaurantId: 'rest_table',
+    enabled: true,
+    rewardLabel: '₹200 OFF Chef Specials',
+    description: 'Flat ₹200 off your fine dining bill',
+    discountType: 'fixed',
+    discountValue: 200,
+    minOrderAmount: 1000,
+    expiryDays: 30,
+  },
+  rest_demo: {
+    restaurantId: 'rest_demo',
+    enabled: true,
+    rewardLabel: '10% OFF Dining Experience',
+    description: '10% discount on total dining bill',
+    discountType: 'percentage',
+    discountValue: 10,
+    minOrderAmount: 500,
+    expiryDays: 20,
+  },
+};
+
 interface CustomerSessionState {
   name: string;
   phone: string;
@@ -490,6 +536,14 @@ interface TenantContextType {
   activeBillConfig: BillConfiguration;
   updateBillConfiguration: (config: BillConfiguration) => void;
 
+  // Review Rewards Configuration
+  reviewRewardConfigs: Record<string, ReviewRewardConfig>;
+  activeReviewRewardConfig: ReviewRewardConfig;
+  updateReviewRewardConfig: (restaurantId: string, config: ReviewRewardConfig) => void;
+
+  // Table Discount & Offer Application
+  applyDiscountToTable: (tableNumber: number, couponId: string) => { success: boolean; message: string; discountAmount: number };
+
   resetToDefaults: () => void;
 }
 
@@ -514,6 +568,7 @@ const STORAGE_KEYS = {
   BILL_CONFIGS: 'ensemble_bill_configs_v3',
   CLEAR_TABLE_AUDITS: 'ensemble_clear_table_audits_v3',
   CUSTOMER_SESSION: 'ensemble_customer_session_v3',
+  REVIEW_REWARDS: 'ensemble_review_rewards_v3',
 };
 
 export function rebalanceWheelProbabilities(
@@ -726,6 +781,9 @@ export const TenantProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   );
   const [billConfigsMap, setBillConfigsMap] = useState<Record<string, BillConfiguration>>(() =>
     loadState(STORAGE_KEYS.BILL_CONFIGS, DEFAULT_BILL_CONFIGS)
+  );
+  const [reviewRewardConfigs, setReviewRewardConfigs] = useState<Record<string, ReviewRewardConfig>>(() =>
+    loadState(STORAGE_KEYS.REVIEW_REWARDS, DEFAULT_REVIEW_REWARDS)
   );
   const [clearTableAudits, setClearTableAudits] = useState<ClearTableAuditLog[]>(() =>
     loadState(STORAGE_KEYS.CLEAR_TABLE_AUDITS, [])
@@ -1200,6 +1258,40 @@ export const TenantProvider: React.FC<{ children: ReactNode }> = ({ children }) 
           };
         });
       }
+
+      if (type === 'DISCOUNT_APPLIED' && tableNumber && payload) {
+        const targetRestId = restaurantId || activeRestaurantId;
+        setTableSessions((prev) => {
+          const list = prev[targetRestId] || [];
+          return {
+            ...prev,
+            [targetRestId]: list.map((s) => {
+              if (s.tableNumber === tableNumber && s.status !== 'closed') {
+                return {
+                  ...s,
+                  appliedDiscount: {
+                    amount: payload.discountAmount,
+                    label: payload.label,
+                    code: payload.couponCode,
+                    type: payload.discountType || 'percentage',
+                    menuItemId: payload.freeMenuItemId,
+                    menuItemName: payload.freeMenuItemName,
+                  },
+                };
+              }
+              return s;
+            }),
+          };
+        });
+      }
+
+      if (type === 'REVIEW_REWARD_SYNC' && payload?.config) {
+        const targetRestId = restaurantId || activeRestaurantId;
+        setReviewRewardConfigs((prev) => ({
+          ...prev,
+          [targetRestId]: payload.config,
+        }));
+      }
     });
 
     return () => unsub();
@@ -1238,10 +1330,148 @@ export const TenantProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   };
 
   const updateBillConfiguration = (config: BillConfiguration) => {
-    setBillConfigsMap((prev) => ({
-      ...prev,
-      [config.restaurantId]: config,
-    }));
+    setBillConfigsMap((prev) => {
+      const next = {
+        ...prev,
+        [config.restaurantId]: config,
+      };
+      try {
+        localStorage.setItem(STORAGE_KEYS.BILL_CONFIGS, JSON.stringify(next));
+      } catch (err) {
+        console.error('Failed to save bill config:', err);
+      }
+      return next;
+    });
+  };
+
+  // Active Review Reward Configuration
+  const activeReviewRewardConfig: ReviewRewardConfig = useMemo(() => {
+    return (
+      reviewRewardConfigs[activeRestaurantId] ||
+      DEFAULT_REVIEW_REWARDS[activeRestaurantId] ||
+      DEFAULT_REVIEW_REWARDS['rest_heritage'] || {
+        restaurantId: activeRestaurantId,
+        enabled: true,
+        rewardLabel: '10% OFF Dining',
+        discountType: 'percentage',
+        discountValue: 10,
+        minOrderAmount: 500,
+        expiryDays: 20,
+      }
+    );
+  }, [reviewRewardConfigs, activeRestaurantId]);
+
+  const updateReviewRewardConfig = (restaurantId: string, config: ReviewRewardConfig) => {
+    const targetRestId = restaurantId || activeRestaurantId;
+    const updated: ReviewRewardConfig = { ...config, restaurantId: targetRestId };
+    setReviewRewardConfigs((prev) => {
+      const next = { ...prev, [targetRestId]: updated };
+      try {
+        localStorage.setItem(STORAGE_KEYS.REVIEW_REWARDS, JSON.stringify(next));
+      } catch (err) {
+        console.error('Failed to save review reward config:', err);
+      }
+      return next;
+    });
+    if (activeRestaurant?.slug) {
+      realtimeHub.publish(
+        activeRestaurant.slug,
+        'REVIEW_REWARD_SYNC' as any,
+        targetRestId,
+        { config: updated }
+      );
+    }
+  };
+
+  // Direct Table Discount & Voucher Redemption
+  const applyDiscountToTable = (
+    tableNumber: number,
+    couponId: string
+  ): { success: boolean; message: string; discountAmount: number } => {
+    const coupon = unifiedCoupons.find((c) => c.id === couponId || c.voucherCode === couponId);
+    if (!coupon) {
+      return { success: false, message: 'Reward voucher not found or invalid.', discountAmount: 0 };
+    }
+    if (coupon.status === 'redeemed') {
+      return { success: false, message: 'This voucher has already been redeemed.', discountAmount: 0 };
+    }
+
+    const tableOrders = orders.filter(
+      (o) =>
+        o.restaurantId === activeRestaurantId &&
+        o.tableNumber === tableNumber &&
+        o.status !== 'cancelled' &&
+        (o.status as string) !== 'archived'
+    );
+    const subtotal = tableOrders.reduce(
+      (sum, o) => sum + o.items.reduce((iSum, it) => iSum + it.price * it.quantity, 0),
+      0
+    );
+
+    let discountAmount = 0;
+    if (coupon.discountType === 'percentage') {
+      discountAmount = Math.round(subtotal * (coupon.discountValue / 100));
+    } else if (coupon.discountType === 'fixed') {
+      discountAmount = Math.min(subtotal, coupon.discountValue);
+    } else if (coupon.discountType === 'free_item') {
+      const matchedItem = tableOrders
+        .flatMap((o) => o.items)
+        .find((it) =>
+          coupon.freeMenuItemName
+            ? it.name.toLowerCase().includes(coupon.freeMenuItemName.toLowerCase())
+            : true
+        );
+      discountAmount = matchedItem ? matchedItem.price : (coupon.discountValue || 150);
+    }
+
+    redeemCoupon(coupon.id);
+
+    setTableSessions((prev) => {
+      const list = prev[activeRestaurantId] || [];
+      return {
+        ...prev,
+        [activeRestaurantId]: list.map((s) => {
+          if (s.tableNumber === tableNumber && s.status !== 'closed') {
+            return {
+              ...s,
+              appliedDiscount: {
+                amount: discountAmount,
+                label: coupon.rewardLabel,
+                code: coupon.voucherCode,
+                type: coupon.discountType,
+                menuItemId: coupon.freeMenuItemId,
+                menuItemName: coupon.freeMenuItemName,
+              },
+            };
+          }
+          return s;
+        }),
+      };
+    });
+
+    if (activeRestaurant?.slug) {
+      realtimeHub.publish(
+        activeRestaurant.slug,
+        'DISCOUNT_APPLIED' as any,
+        activeRestaurantId,
+        {
+          tableNumber,
+          discountAmount,
+          couponCode: coupon.voucherCode,
+          label: coupon.rewardLabel,
+          discountType: coupon.discountType,
+          freeMenuItemId: coupon.freeMenuItemId,
+          freeMenuItemName: coupon.freeMenuItemName,
+        },
+        tableNumber
+      );
+    }
+
+    return {
+      success: true,
+      message: `Successfully applied ${coupon.rewardLabel} (-₹${discountAmount}) to Table ${tableNumber}!`,
+      discountAmount,
+    };
   };
 
   // Active table session
@@ -1822,7 +2052,7 @@ export const TenantProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       orderedByName: 'Captain (Direct Oral Order)',
       orderedByPhone: 'Staff Added',
       items: orderItems,
-      status: 'confirmed',
+      status: 'preparing',
       estimatedPrepMinutes: 15,
       prepStartedAt: new Date().toISOString(),
       prepExpiresAt: new Date(Date.now() + 15 * 60000).toISOString(),
@@ -2853,6 +3083,44 @@ export const TenantProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       ...prev,
       [activeRestaurantId]: [newRev, ...(prev[activeRestaurantId] || [])],
     }));
+
+    // Dynamically award configured review reward if enabled
+    if (activeReviewRewardConfig && activeReviewRewardConfig.enabled) {
+      const voucherCode = `${activeRestaurant.name.replace(/[^a-zA-Z]/g, '').slice(0, 4).toUpperCase()}-REV${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+      const customerPhone = review.customerPhone || customerSession?.phone || 'Verified Guest';
+      const tbl = typeof review.tableNumber === 'number' ? review.tableNumber : activeTable;
+
+      addUnifiedCoupon({
+        restaurantId: activeRestaurantId,
+        customerPhone,
+        voucherCode,
+        rewardLabel: activeReviewRewardConfig.rewardLabel,
+        discountType: activeReviewRewardConfig.discountType,
+        discountValue: activeReviewRewardConfig.discountValue,
+        slot: 'active',
+        source: 'review',
+        expiresAt: new Date(Date.now() + (activeReviewRewardConfig.expiryDays || 20) * 86400000).toISOString(),
+        tableNumber: tbl,
+        freeMenuItemId: activeReviewRewardConfig.freeMenuItemId,
+        freeMenuItemName: activeReviewRewardConfig.freeMenuItemName,
+      });
+
+      addCustomerReward({
+        restaurantId: activeRestaurantId,
+        code: voucherCode,
+        rewardLabel: activeReviewRewardConfig.rewardLabel,
+        discountType: activeReviewRewardConfig.discountType,
+        discountValue: activeReviewRewardConfig.discountValue,
+        expiresAt: `Valid ${activeReviewRewardConfig.expiryDays || 20} Days`,
+        status: 'active',
+        qrData: `${voucherCode}-T${tbl}`,
+        tableNumber: tbl,
+        customerPhone,
+        freeMenuItemId: activeReviewRewardConfig.freeMenuItemId,
+        freeMenuItemName: activeReviewRewardConfig.freeMenuItemName,
+      });
+    }
+
     grantCustomerSpin();
   };
 
@@ -3089,6 +3357,7 @@ export const TenantProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     setUnifiedCoupons(SEED_UNIFIED_COUPONS);
     setTableHistoryMap(SEED_TABLE_HISTORY);
     setBillConfigsMap(DEFAULT_BILL_CONFIGS);
+    setReviewRewardConfigs(DEFAULT_REVIEW_REWARDS);
     setClearTableAudits([]);
     setCustomerWallet([]);
     setCanSpin(true);
@@ -3212,6 +3481,12 @@ export const TenantProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         billConfigsMap,
         activeBillConfig,
         updateBillConfiguration,
+
+        reviewRewardConfigs,
+        activeReviewRewardConfig,
+        updateReviewRewardConfig,
+
+        applyDiscountToTable,
 
         resetToDefaults,
       }}

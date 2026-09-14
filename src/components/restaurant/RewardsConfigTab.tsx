@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useTenant, rebalanceWheelProbabilities } from '../../context/TenantContext';
-import { RewardWheelItem } from '../../types/tenant';
+import { RewardWheelItem, ReviewRewardConfig } from '../../types/tenant';
 import {
   Gift,
   Sparkles,
@@ -14,6 +14,8 @@ import {
   RefreshCw,
   X,
   Check,
+  Star,
+  UtensilsCrossed,
 } from 'lucide-react';
 
 const PRESET_COLORS = [
@@ -34,12 +36,25 @@ export const RewardsConfigTab: React.FC = () => {
     addRewardItem,
     deleteRewardItem,
     saveRewardConfiguration,
+    activeReviewRewardConfig,
+    updateReviewRewardConfig,
+    activeMenuItems,
   } = useTenant();
 
   // Local working copy of items for fluid editing and live rebalancing before persistence
   const [items, setItems] = useState<RewardWheelItem[]>(activeRewardItems);
   const [successNotice, setSuccessNotice] = useState<string | null>(null);
   const [errorNotice, setErrorNotice] = useState<string | null>(null);
+
+  // Review Reward Configuration State
+  const [reviewConfig, setReviewConfig] = useState<ReviewRewardConfig>(activeReviewRewardConfig);
+  const [reviewSavedNotice, setReviewSavedNotice] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (activeReviewRewardConfig) {
+      setReviewConfig(activeReviewRewardConfig);
+    }
+  }, [activeReviewRewardConfig]);
 
   // Modal State for Add / Edit
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
@@ -483,6 +498,243 @@ export const RewardsConfigTab: React.FC = () => {
             </div>
           </div>
         ))}
+      </div>
+
+      {/* Review Reward Configuration Section (Req 18 & 19) */}
+      <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm space-y-6">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+          <div className="flex items-center space-x-3">
+            <div className="w-10 h-10 rounded-2xl bg-amber-50 border border-amber-200 text-amber-600 flex items-center justify-center shrink-0">
+              <Star className="w-5 h-5 fill-amber-400 text-amber-500" />
+            </div>
+            <div>
+              <div className="flex items-center space-x-2">
+                <h3 className="font-serif font-bold text-base text-slate-900">
+                  Google &amp; In-App Review Reward Configuration
+                </h3>
+                <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                  Req 18 &amp; 19
+                </span>
+              </div>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Configure the dining incentive awarded to diners who submit a review. Dynamically reflected on customer QR menus and bill drawers.
+              </p>
+            </div>
+          </div>
+
+          <label className="flex items-center space-x-2 cursor-pointer select-none">
+            <span className="text-xs font-semibold text-slate-600">Review Reward:</span>
+            <div
+              onClick={() =>
+                setReviewConfig((prev) => ({ ...prev, enabled: !prev.enabled }))
+              }
+              className={`w-11 h-6 flex items-center rounded-full p-1 cursor-pointer transition-colors ${
+                reviewConfig.enabled ? 'bg-emerald-600' : 'bg-slate-300'
+              }`}
+            >
+              <div
+                className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform ${
+                  reviewConfig.enabled ? 'translate-x-5' : 'translate-x-0'
+                }`}
+              />
+            </div>
+            <span className="text-xs font-bold text-slate-900">
+              {reviewConfig.enabled ? 'Enabled' : 'Disabled'}
+            </span>
+          </label>
+        </div>
+
+        {reviewSavedNotice && (
+          <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl text-xs font-semibold flex items-center space-x-2">
+            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+            <span>{reviewSavedNotice}</span>
+          </div>
+        )}
+
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            updateReviewRewardConfig(activeRestaurant.id, reviewConfig);
+            setReviewSavedNotice('Review reward configuration successfully saved & broadcasted!');
+            setTimeout(() => setReviewSavedNotice(null), 3500);
+          }}
+          className="space-y-4 text-xs"
+        >
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Reward Type */}
+            <div>
+              <label className="block font-bold text-slate-700 mb-1">
+                Reward Type *
+              </label>
+              <select
+                value={reviewConfig.discountType}
+                onChange={(e) =>
+                  setReviewConfig((prev) => ({
+                    ...prev,
+                    discountType: e.target.value as any,
+                  }))
+                }
+                className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-slate-50 focus:outline-none focus:ring-1 focus:ring-slate-400 font-medium text-slate-900"
+              >
+                <option value="percentage">Percentage Discount (% OFF Bill)</option>
+                <option value="fixed">Fixed Rupee Discount (₹ Flat OFF)</option>
+                <option value="free_item">Complimentary Dish / Item</option>
+              </select>
+            </div>
+
+            {/* Offer Display Label */}
+            <div>
+              <label className="block font-bold text-slate-700 mb-1">
+                Reward Display Label *
+              </label>
+              <input
+                type="text"
+                required
+                placeholder="e.g. 10% OFF Royal Feast or Free Gulab Jamun"
+                value={reviewConfig.rewardLabel}
+                onChange={(e) =>
+                  setReviewConfig((prev) => ({
+                    ...prev,
+                    rewardLabel: e.target.value,
+                  }))
+                }
+                className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-slate-50 focus:outline-none focus:ring-1 focus:ring-slate-400 font-medium text-slate-900"
+              />
+            </div>
+
+            {/* Discount Value or Free Dish Picker */}
+            {reviewConfig.discountType === 'free_item' ? (
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">
+                  Choose Free Menu Item *
+                </label>
+                <select
+                  value={reviewConfig.freeMenuItemId || ''}
+                  onChange={(e) => {
+                    const selected = activeMenuItems.find((m) => m.id === e.target.value);
+                    setReviewConfig((prev) => ({
+                      ...prev,
+                      freeMenuItemId: e.target.value,
+                      freeMenuItemName: selected?.name || '',
+                      discountValue: selected?.price || 150,
+                      rewardLabel: selected ? `Free ${selected.name}` : prev.rewardLabel,
+                    }));
+                  }}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-slate-50 focus:outline-none focus:ring-1 focus:ring-slate-400 font-medium text-slate-900"
+                >
+                  <option value="">-- Select from Menu Items --</option>
+                  {activeMenuItems.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {item.name} (₹{item.price}) • {item.category}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : (
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">
+                  {reviewConfig.discountType === 'percentage'
+                    ? 'Discount Percentage (%)'
+                    : 'Discount Rupee Amount (₹)'}
+                </label>
+                <input
+                  type="number"
+                  min={1}
+                  max={reviewConfig.discountType === 'percentage' ? 100 : 5000}
+                  value={reviewConfig.discountValue}
+                  onChange={(e) =>
+                    setReviewConfig((prev) => ({
+                      ...prev,
+                      discountValue: Number(e.target.value),
+                    }))
+                  }
+                  className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-slate-50 focus:outline-none focus:ring-1 focus:ring-slate-400 font-medium text-slate-900"
+                />
+              </div>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Minimum Order Value */}
+            <div>
+              <label className="block font-bold text-slate-700 mb-1">
+                Minimum Bill Amount (₹)
+              </label>
+              <input
+                type="number"
+                min={0}
+                step={50}
+                placeholder="0 = No minimum"
+                value={reviewConfig.minOrderAmount || 0}
+                onChange={(e) =>
+                  setReviewConfig((prev) => ({
+                    ...prev,
+                    minOrderAmount: Number(e.target.value),
+                  }))
+                }
+                className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-slate-50 focus:outline-none focus:ring-1 focus:ring-slate-400 font-medium text-slate-900"
+              />
+              <span className="text-[10px] text-slate-400 mt-1 block">
+                Offer applies when total food &amp; beverage bill meets or exceeds this threshold.
+              </span>
+            </div>
+
+            {/* Voucher Validity */}
+            <div>
+              <label className="block font-bold text-slate-700 mb-1">
+                Voucher Validity (Days)
+              </label>
+              <select
+                value={reviewConfig.expiryDays || 20}
+                onChange={(e) =>
+                  setReviewConfig((prev) => ({
+                    ...prev,
+                    expiryDays: Number(e.target.value),
+                  }))
+                }
+                className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-slate-50 focus:outline-none focus:ring-1 focus:ring-slate-400 font-medium text-slate-900"
+              >
+                <option value={7}>7 Days</option>
+                <option value={14}>14 Days</option>
+                <option value={20}>20 Days (Ensemble Retention Cycle)</option>
+                <option value={30}>30 Days (Monthly Retention)</option>
+              </select>
+              <span className="text-[10px] text-slate-400 mt-1 block">
+                Number of days the customer has to redeem this reward upon issuing.
+              </span>
+            </div>
+          </div>
+
+          {/* Live Diner Preview */}
+          <div className="p-4 rounded-2xl bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            <div className="flex items-center space-x-3">
+              <div className="w-9 h-9 rounded-xl bg-amber-500 text-slate-950 font-bold flex items-center justify-center text-sm shadow">
+                🎁
+              </div>
+              <div>
+                <span className="text-[10px] font-bold text-amber-800 uppercase tracking-wider block">
+                  Live Customer Preview (Table QR &amp; Review Modal)
+                </span>
+                <p className="text-xs font-bold text-slate-900">
+                  {reviewConfig.enabled
+                    ? `SHARE YOUR DINING REVIEW & UNLOCK: ${reviewConfig.rewardLabel}`
+                    : 'Review rewards currently disabled for diners'}
+                </p>
+                <span className="text-[10px] text-slate-500">
+                  Min Bill: ₹{reviewConfig.minOrderAmount || 0} • Valid for {reviewConfig.expiryDays || 20} days
+                </span>
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              className="px-5 py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider text-white shadow-md transition transform active:scale-95 cursor-pointer shrink-0"
+              style={{ backgroundColor: primaryColor }}
+            >
+              Save Review Privilege
+            </button>
+          </div>
+        </form>
       </div>
 
       {/* Add / Edit Offer Modal */}

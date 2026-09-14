@@ -36,9 +36,22 @@ export interface RestaurantPlanFeatures {
 }
 
 export interface ChargesConfig {
-  gstPercent: number;           // e.g. 5%
-  serviceChargePercent: number; // e.g. 5%
-  packagingFee: number;         // e.g. flat flat ₹30
+  gstPercent: number;
+  serviceChargePercent: number;
+  packagingFee: number;
+}
+
+export interface ReviewRewardConfig {
+  restaurantId?: string;
+  enabled: boolean;
+  rewardLabel: string; // e.g. "10% OFF" or "Free Chocolate Lava Cake"
+  description?: string;
+  discountType: 'percentage' | 'fixed' | 'free_item';
+  discountValue: number; // e.g. 10 for 10%
+  freeMenuItemId?: string;
+  freeMenuItemName?: string;
+  minOrderAmount?: number;
+  expiryDays: number;
 }
 
 export interface Restaurant {
@@ -62,6 +75,7 @@ export interface Restaurant {
   plan: 'Starter' | 'Growth' | 'Enterprise';
   planFeatures?: RestaurantPlanFeatures;
   chargesConfig?: ChargesConfig;
+  reviewRewardConfig?: ReviewRewardConfig;
   tags?: string[];
   mrr: number;
   createdAt: string;
@@ -168,6 +182,8 @@ export interface UnifiedCoupon {
   activatedAt?: string;
   expiresAt: string; // 20-day clock calculated fresh upon activation
   tableNumber?: number;
+  freeMenuItemId?: string;
+  freeMenuItemName?: string;
 }
 
 export interface CustomerReward {
@@ -187,6 +203,8 @@ export interface CustomerReward {
   voucherCode?: string;
   expiryDate?: string;
   wonDate?: string;
+  freeMenuItemId?: string;
+  freeMenuItemName?: string;
   source?: string;
 }
 
@@ -249,6 +267,14 @@ export interface TableRecord {
   totalScans: number;
   lastScanned: string;
   assignedCaptain?: string;
+  appliedDiscount?: {
+    amount: number;
+    label: string;
+    code: string;
+    type: 'percentage' | 'fixed' | 'free_item';
+    menuItemId?: string;
+    menuItemName?: string;
+  };
 }
 
 export interface Campaign {

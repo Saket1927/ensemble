@@ -89,11 +89,12 @@ export const CustomerMenu: React.FC = () => {
     (o) => (o.restaurantId ? o.restaurantId === activeRestaurant.id : true) && o.tableNumber === activeTable && o.status !== 'cancelled'
   );
   const currentTableRecord = activeTables.find((t) => t.tableNumber === activeTable);
+  const isDiningComplete = currentTableRecord?.status === 'paid_pending_reset';
   const isTableCleared = currentTableRecord?.status === 'available' && tableOrders.length === 0;
   const hasLiveTab = !isTableCleared && (tableOrders.length > 0 || !!currentTableSession);
 
   const handlePlaceOrder = () => {
-    if (cartList.length === 0) return;
+    if (isDiningComplete || cartList.length === 0) return;
 
     placeCustomerOrder(
       activeTable,
@@ -131,6 +132,19 @@ export const CustomerMenu: React.FC = () => {
           Select your signature dishes and add them to Table {activeTable}'s live tab.
         </p>
       </div>
+
+      {/* Dining Complete / Session Settled Alert (Req 9, 52) */}
+      {isDiningComplete && (
+        <div className="bg-emerald-50 border border-emerald-300 rounded-2xl p-4 flex items-start space-x-3 text-emerald-900 shadow-sm animate-fade-in">
+          <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
+          <div className="flex-1">
+            <div className="font-bold text-sm">Table {activeTable} Dining Complete • Bill Settled</div>
+            <p className="text-xs text-emerald-800 mt-1 leading-relaxed">
+              Your table bill has been settled by the captain. Order placement is closed for this dining session. Thank you for dining with us! You can still browse our menu dishes or check your settled tab.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Search & Veg Filter */}
       <div className="flex items-center space-x-2">
@@ -287,6 +301,10 @@ export const CustomerMenu: React.FC = () => {
                       <span className="px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider bg-slate-100 text-slate-400 border border-slate-200">
                         Sold Out
                       </span>
+                    ) : isDiningComplete ? (
+                      <span className="px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider bg-slate-100 text-slate-500 border border-slate-200">
+                        Closed
+                      </span>
                     ) : inCartQty > 0 ? (
                       <div className="flex items-center space-x-2 bg-emerald-50 border border-emerald-300 rounded-lg px-2 py-1 text-emerald-900 shadow-sm">
                         <button
@@ -437,23 +455,25 @@ export const CustomerMenu: React.FC = () => {
               <div className="pt-2">
                 <button
                   onClick={() => {
-                    if (selectedDish.isAvailable !== false) {
+                    if (selectedDish.isAvailable !== false && !isDiningComplete) {
                       addToCart(selectedDish);
                       setSelectedDish(null);
                     }
                   }}
-                  disabled={selectedDish.isAvailable === false}
+                  disabled={selectedDish.isAvailable === false || isDiningComplete}
                   className={`w-full py-3 rounded-xl font-bold text-xs uppercase tracking-wider text-white shadow-md transition flex items-center justify-center space-x-2 ${
-                    selectedDish.isAvailable === false ? 'bg-slate-300 text-slate-500 cursor-not-allowed' : ''
+                    selectedDish.isAvailable === false || isDiningComplete ? 'bg-slate-300 text-slate-500 cursor-not-allowed' : ''
                   }`}
                   style={{
-                    backgroundColor: selectedDish.isAvailable === false ? undefined : primaryColor,
+                    backgroundColor: selectedDish.isAvailable === false || isDiningComplete ? undefined : primaryColor,
                   }}
                 >
                   <Plus className="w-4 h-4" />
                   <span>
                     {selectedDish.isAvailable === false
                       ? 'Item Currently Sold Out'
+                      : isDiningComplete
+                      ? 'Bill Settled • Ordering Closed'
                       : `Add to Order (₹${selectedDish.price})`}
                   </span>
                 </button>

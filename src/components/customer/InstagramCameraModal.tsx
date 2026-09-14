@@ -31,6 +31,7 @@ export const InstagramCameraModal: React.FC<InstagramCameraModalProps> = ({
     customerSession,
     submitSocialProof,
     activeTable,
+    addUnifiedCoupon,
   } = useTenant();
 
   const [step, setStep] = useState<'capture' | 'preview' | 'caption' | 'verify' | 'success'>('capture');
@@ -98,8 +99,8 @@ export const InstagramCameraModal: React.FC<InstagramCameraModalProps> = ({
 
   // Open Instagram App or Web
   const handleOpenInstagram = () => {
-    // Try native app protocol, then fallback
-    window.open(`https://www.instagram.com/${rawInstagramHandle}`, '_blank');
+    // Open Instagram app or web to create story/post from user's own account (Req 4 & 37)
+    window.open('https://www.instagram.com/', '_blank');
     setStep('verify');
   };
 
@@ -123,6 +124,20 @@ export const InstagramCameraModal: React.FC<InstagramCameraModalProps> = ({
       instagramHandle: instagramHandle.trim() || undefined,
       platform: 'Instagram',
       screenshotUrl,
+    });
+
+    const igVoucherCode = `${activeRestaurant.slug.replace(/[^a-zA-Z]/g, '').slice(0, 4).toUpperCase()}-IG${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+    addUnifiedCoupon({
+      restaurantId: activeRestaurant.id,
+      customerPhone: phone,
+      voucherCode: igVoucherCode,
+      rewardLabel: 'Instagram Story Foodie Privilege',
+      discountType: 'percentage',
+      discountValue: 15,
+      slot: 'pending_approval',
+      source: 'instagram',
+      expiresAt: 'Pending Captain / Manager Verification',
+      tableNumber: activeTable,
     });
 
     setIsSubmitting(false);

@@ -38,7 +38,10 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({
   onOpenBillUpload,
   onOpenInstagramCamera,
 }) => {
-  const { activeRestaurant, activeTable, activeReviews, canSpin } = useTenant();
+  const { activeRestaurant, activeTable, activeTables, activeReviews, canSpin, activeReviewRewardConfig } = useTenant();
+
+  const currentTableRecord = activeTables.find((t) => t.tableNumber === activeTable);
+  const isDiningComplete = currentTableRecord?.status === 'paid_pending_reset';
 
   const primaryColor = activeRestaurant.branding.primaryColor;
   const secondaryColor = activeRestaurant.branding.secondaryColor;
@@ -87,6 +90,43 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Post-Dining Settle Card (Req 9, 52) */}
+      {isDiningComplete && (
+        <div className="mx-4 p-5 rounded-2xl bg-gradient-to-br from-emerald-950 via-slate-900 to-black text-white shadow-xl border border-emerald-500/40 space-y-3 animate-fade-in">
+          <div className="flex items-center space-x-3">
+            <div className="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center border border-emerald-400/30 shrink-0">
+              <Award className="w-5 h-5 text-emerald-300" />
+            </div>
+            <div>
+              <div className="text-[10px] font-bold uppercase tracking-widest text-emerald-400">
+                Table {activeTable} • Bill Settled
+              </div>
+              <h3 className="font-serif font-bold text-base text-white">
+                Thank You For Dining With Us!
+              </h3>
+            </div>
+          </div>
+          <p className="text-xs text-slate-300 leading-relaxed">
+            Your dining session has concluded. We loved having you at {activeRestaurant.name}. Your Open Tab remains accessible in read-only mode.
+          </p>
+          <div className="p-3 bg-white/5 rounded-xl border border-white/10 flex items-center justify-between">
+            <div className="text-xs pr-2">
+              <span className="text-amber-300 font-bold block">Review Us & Unlock Reward</span>
+              <span className="text-slate-300 text-[11px]">
+                {activeReviewRewardConfig?.rewardLabel || '15% Off Next Visit'}
+              </span>
+            </div>
+            <button
+              onClick={onOpenReview}
+              className="px-3.5 py-2 rounded-xl text-xs font-bold text-slate-950 bg-amber-400 hover:bg-amber-300 shadow-md transition-all flex items-center space-x-1 shrink-0"
+            >
+              <span>Review Now</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* 2. Primary CTAs Section */}
       <div className="px-4 space-y-3">

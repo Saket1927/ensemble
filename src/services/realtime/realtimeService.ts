@@ -25,7 +25,10 @@ export type RealtimeEventType =
   | 'CLEAR_TABLE'
   | 'MENU_SYNC'
   | 'SPIN_CONFIG_SYNC'
-  | 'TABLE_SPIN_COMPLETED';
+  | 'TABLE_SPIN_COMPLETED'
+  | 'DISCOUNT_APPLIED'
+  | 'ORDER_ITEM_DELIVERED'
+  | 'REVIEW_REWARD_SYNC';
 
 export interface RealtimeEnvelope<T = any> {
   id: string;

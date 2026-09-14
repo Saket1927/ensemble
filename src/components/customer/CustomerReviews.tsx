@@ -16,7 +16,14 @@ interface CustomerReviewsProps {
 }
 
 export const CustomerReviews: React.FC<CustomerReviewsProps> = ({ onReviewSubmitted }) => {
-  const { activeRestaurant, activeTable, activeReviews, addReview, activeMenuItems } = useTenant();
+  const {
+    activeRestaurant,
+    activeTable,
+    activeReviews,
+    addReview,
+    activeMenuItems,
+    activeReviewRewardConfig,
+  } = useTenant();
 
   const [filterRating, setFilterRating] = useState<number | 'all'>('all');
   const [filterWithPhotos, setFilterWithPhotos] = useState<boolean>(false);
@@ -81,12 +88,49 @@ export const CustomerReviews: React.FC<CustomerReviewsProps> = ({ onReviewSubmit
           Guest Feedback
         </span>
         <h1 className="font-serif text-2xl font-bold text-slate-900">
-          Reviews & Stories
+          Reviews &amp; Stories
         </h1>
         <p className="text-xs text-slate-500 mt-0.5">
           Read genuine dining memoirs or share your {activeRestaurant.name} experience.
         </p>
       </div>
+
+      {/* Review Reward Incentive Hero Banner (Req 1, 21, 22) */}
+      {activeReviewRewardConfig?.enabled && (
+        <div
+          className="p-4 rounded-2xl border text-white shadow-md relative overflow-hidden flex items-center justify-between gap-3"
+          style={{
+            background: `linear-gradient(135deg, ${primaryColor} 0%, #1e3a2f 60%, ${secondaryColor} 100%)`,
+            borderColor: `${secondaryColor}60`,
+          }}
+        >
+          <div className="space-y-1 z-10">
+            <div className="flex items-center space-x-1.5">
+              <span className="text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full bg-amber-400 text-slate-950">
+                Dining Privilege
+              </span>
+              <span className="text-[10px] text-amber-200 font-semibold">Table #{activeTable}</span>
+            </div>
+            <h3 className="font-serif text-base sm:text-lg font-bold text-white leading-tight">
+              {activeReviewRewardConfig.rewardLabel}
+            </h3>
+            <p className="text-xs text-slate-200 max-w-xs leading-relaxed">
+              Submit your genuine table review to claim your verified reward voucher immediately.
+              {activeReviewRewardConfig.minOrderAmount ? ` Valid on bills above ₹${activeReviewRewardConfig.minOrderAmount}.` : ''}
+            </p>
+          </div>
+
+          <button
+            onClick={() => {
+              setShowForm(true);
+              setSubmitted(false);
+            }}
+            className="px-3.5 py-2 rounded-xl text-xs font-bold text-slate-950 bg-amber-400 hover:bg-amber-300 shadow-md transition active:scale-95 shrink-0 z-10 cursor-pointer"
+          >
+            Claim Reward &rarr;
+          </button>
+        </div>
+      )}
 
       {/* Ratings Summary Card */}
       <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm flex items-center justify-between">
@@ -280,6 +324,20 @@ export const CustomerReviews: React.FC<CustomerReviewsProps> = ({ onReviewSubmit
                   Your feedback has been recorded at Table {activeTable}.
                 </p>
               </div>
+
+              {activeReviewRewardConfig?.enabled && (
+                <div className="bg-gradient-to-r from-emerald-50 to-teal-50 border-2 border-emerald-300 rounded-2xl p-4 text-center space-y-1 shadow-sm">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-full">
+                    Reward Privilege Unlocked 🎉
+                  </span>
+                  <div className="font-serif text-lg font-bold text-slate-900 mt-1">
+                    {activeReviewRewardConfig.rewardLabel}
+                  </div>
+                  <p className="text-[11px] text-slate-600">
+                    Saved automatically to your "Rewards" tab! Valid for {activeReviewRewardConfig.expiryDays || 20} days.
+                  </p>
+                </div>
+              )}
 
               {/* High rating -> Google Review CTA */}
               {rating >= 4 ? (
