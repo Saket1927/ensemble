@@ -15,8 +15,12 @@ export const SpinWheelModal: React.FC<SpinWheelModalProps> = ({ onClose, onRewar
     activeRestaurant,
     activeRewardItems,
     addCustomerReward,
+    addUnifiedCoupon,
     consumeCustomerSpin,
     activeTable,
+    currentTableSession,
+    customerSession,
+    recordTableSpinWon,
   } = useTenant();
 
   const [isSpinning, setIsSpinning] = useState<boolean>(false);
@@ -166,7 +170,33 @@ export const SpinWheelModal: React.FC<SpinWheelModalProps> = ({ onClose, onRewar
           tableNumber: activeTable,
         });
         setWonRewardRecord(saved);
+
+        addUnifiedCoupon({
+          restaurantId: activeRestaurant.id,
+          customerPhone: customerSession?.phone || 'Guest',
+          voucherCode: code,
+          rewardLabel: selectedPrize.label,
+          discountType: selectedPrize.discountType as any,
+          discountValue: selectedPrize.discountValue,
+          slot: 'active',
+          source: 'spin_win',
+          expiresAt: new Date(Date.now() + 20 * 86400000).toISOString(),
+          tableNumber: activeTable,
+        });
       }
+
+      // Record in session so all co-diners on this table see the winner and cannot spin again
+      recordTableSpinWon(
+        activeTable,
+        customerSession?.name || 'Table Guest',
+        customerSession?.phone || '',
+        {
+          label: selectedPrize.label,
+          code,
+          discountType: selectedPrize.discountType,
+          discountValue: selectedPrize.discountValue,
+        }
+      );
     }, 4500);
   };
 
@@ -182,7 +212,46 @@ export const SpinWheelModal: React.FC<SpinWheelModalProps> = ({ onClose, onRewar
           <X className="w-4 h-4" />
         </button>
 
-        {!wonItem ? (
+        {currentTableSession?.spinStatus === 'completed' && !wonItem ? (
+          /* Already Won Table Notice (Only 1 spin per table session rule) */
+          <div className="space-y-4 w-full flex flex-col items-center py-4">
+            <div className="w-16 h-16 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-500 flex items-center justify-center">
+              <Gift className="w-8 h-8" />
+            </div>
+            <div>
+              <span className="text-[10px] font-bold uppercase tracking-widest text-amber-600 block mb-1">
+                Table Reward Already Unlocked
+              </span>
+              <h3 className="font-serif text-xl font-bold text-slate-900">
+                Reward Already Won for Table #{activeTable}
+              </h3>
+              <p className="text-xs text-slate-600 mt-2 max-w-xs mx-auto leading-relaxed">
+                Your host <strong className="text-slate-900">{currentTableSession.spinWinnerName || currentTableSession.hostName}</strong> has already unlocked an offer for this table session.
+              </p>
+            </div>
+
+            {currentTableSession.spinReward && (
+              <div className="p-3 bg-amber-50 rounded-2xl border border-amber-200 text-center w-full">
+                <div className="text-sm font-bold text-amber-900">{currentTableSession.spinReward.label}</div>
+                <div className="text-[11px] font-mono font-bold text-amber-700 mt-0.5">
+                  Voucher Code: {currentTableSession.spinReward.code}
+                </div>
+              </div>
+            )}
+
+            <p className="text-[11px] text-slate-500 max-w-xs">
+              Under our fair dining policy, one Spin & Win reward is permitted per table session. Your next personal spin will unlock on your next visit!
+            </p>
+
+            <button
+              onClick={onClose}
+              className="w-full py-3 rounded-xl text-xs font-bold text-white shadow transition-transform active:scale-95"
+              style={{ backgroundColor: primaryColor }}
+            >
+              Back to Dining Table
+            </button>
+          </div>
+        ) : !wonItem ? (
           /* Spin Wheel Phase */
           <div className="space-y-4 w-full flex flex-col items-center">
             <div>

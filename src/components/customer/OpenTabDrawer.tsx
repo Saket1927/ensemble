@@ -592,6 +592,11 @@ export const OpenTabDrawer: React.FC<OpenTabDrawerProps> = ({ onOpenMenuToAdd })
                   <CreditCard className="w-4 h-4 text-amber-300" />
                   <span>Ask for Bill &rarr;</span>
                 </button>
+              ) : currentTableRecord?.status === 'paid_pending_reset' ? (
+                <div className="w-full py-2.5 px-3 rounded-xl text-[11px] font-bold bg-purple-50 text-purple-900 border border-purple-300 flex items-center justify-center space-x-1.5">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-purple-600" />
+                  <span>Dining Complete ✓ Paid</span>
+                </div>
               ) : (
                 <div className="w-full py-2.5 px-3 rounded-xl text-[11px] font-bold bg-amber-50 text-amber-800 border border-amber-300 flex items-center justify-center space-x-1">
                   <CheckCircle2 className="w-3.5 h-3.5 text-amber-600" />

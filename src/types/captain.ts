@@ -24,6 +24,7 @@ export interface TableSession {
   tableNumber: number;
   hostName: string;
   hostPhone: string;
+  guestCount?: number;
   members: SessionMember[];
   geofenceVerified: boolean;
   geofenceOverridden: boolean;
@@ -31,6 +32,15 @@ export interface TableSession {
   paymentMethod?: 'cash' | 'online';
   createdAt: string;
   closedAt?: string;
+  spinStatus?: 'available' | 'completed';
+  spinWinnerName?: string;
+  spinWinnerPhone?: string;
+  spinReward?: {
+    label: string;
+    code: string;
+    discountType: string;
+    discountValue: number;
+  };
 }
 
 export interface CaptainCall {

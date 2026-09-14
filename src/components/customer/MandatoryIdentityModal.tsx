@@ -17,6 +17,7 @@ export const MandatoryIdentityModal: React.FC<MandatoryIdentityModalProps> = ({ 
 
   const [name, setName] = useState(customerSession?.name || '');
   const [phone, setPhone] = useState(customerSession?.phone || '');
+  const [guestCount, setGuestCount] = useState<number>(customerSession?.guestCount || 2);
   const [returningGreeting, setReturningGreeting] = useState<string | null>(null);
 
   const primaryColor = activeRestaurant.branding.primaryColor;
@@ -30,7 +31,8 @@ export const MandatoryIdentityModal: React.FC<MandatoryIdentityModalProps> = ({ 
     e.preventDefault();
     if (!name.trim() || !phone.trim()) return;
 
-    const result = registerCustomerSession(name.trim(), phone.trim(), activeTable);
+    const safeGuests = Math.max(1, Number(guestCount) || 1);
+    const result = registerCustomerSession(name.trim(), phone.trim(), activeTable, safeGuests);
     if (result.isReturning) {
       setReturningGreeting(`Welcome back, ${name}! Your dining profile and rewards have been synced.`);
       setTimeout(() => {
@@ -111,6 +113,31 @@ export const MandatoryIdentityModal: React.FC<MandatoryIdentityModalProps> = ({ 
               <p className="text-[10px] text-slate-500 mt-1">
                 Zero friction: Trusted phone identification connects your table tab and vouchers.
               </p>
+            </div>
+
+            <div>
+              <label className="text-[11px] font-bold uppercase tracking-wider text-slate-700 block mb-1">
+                Guest Count / Table Size
+              </label>
+              <div className="grid grid-cols-6 gap-1.5">
+                {[1, 2, 3, 4, 5, 6].map((num) => (
+                  <button
+                    key={num}
+                    type="button"
+                    onClick={() => setGuestCount(num)}
+                    className={`py-2 rounded-xl text-xs font-bold transition-all border ${
+                      guestCount === num
+                        ? 'text-white border-transparent shadow-md'
+                        : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                    }`}
+                    style={{
+                      backgroundColor: guestCount === num ? primaryColor : undefined,
+                    }}
+                  >
+                    {num === 6 ? '6+' : num}
+                  </button>
+                ))}
+              </div>
             </div>
 
             <button

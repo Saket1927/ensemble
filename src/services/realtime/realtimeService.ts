@@ -24,7 +24,8 @@ export type RealtimeEventType =
   | 'BILL_REQUESTED'
   | 'CLEAR_TABLE'
   | 'MENU_SYNC'
-  | 'SPIN_CONFIG_SYNC';
+  | 'SPIN_CONFIG_SYNC'
+  | 'TABLE_SPIN_COMPLETED';
 
 export interface RealtimeEnvelope<T = any> {
   id: string;

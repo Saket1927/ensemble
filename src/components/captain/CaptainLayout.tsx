@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useTenant } from '../../context/TenantContext';
 import {
   Bell,
@@ -26,7 +26,11 @@ import {
   X,
   LogOut,
   User,
+  Camera,
+  CameraOff,
+  Phone,
 } from 'lucide-react';
+import jsQR from 'jsqr';
 import { useAuth } from '../../context/AuthContext';
 import { TableRecord } from '../../types/tenant';
 import { CaptainOrder, OrderItemEntry } from '../../types/captain';
@@ -155,6 +159,98 @@ export const CaptainLayout: React.FC = () => {
     if (filterStatus === 'all') return true;
     return table.status === filterStatus;
   });
+
+  const [isCameraActive, setIsCameraActive] = useState<boolean>(false);
+  const [cameraError, setCameraError] = useState<string | null>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const scanStreamRef = useRef<MediaStream | null>(null);
+  const scanAnimFrameRef = useRef<number | null>(null);
+  const [scannerTab, setScannerTab] = useState<'code' | 'phone'>('code');
+  const [phoneSearchQuery, setPhoneSearchQuery] = useState<string>('');
+
+  const stopCameraScan = () => {
+    if (scanAnimFrameRef.current) {
+      cancelAnimationFrame(scanAnimFrameRef.current);
+      scanAnimFrameRef.current = null;
+    }
+    if (scanStreamRef.current) {
+      scanStreamRef.current.getTracks().forEach((track) => track.stop());
+      scanStreamRef.current = null;
+    }
+    setIsCameraActive(false);
+  };
+
+  const startCameraScan = async () => {
+    setCameraError(null);
+    setScanResult(null);
+    try {
+      if (!navigator?.mediaDevices?.getUserMedia) {
+        setCameraError('Camera access not supported on this device/browser.');
+        return;
+      }
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment' },
+      });
+      scanStreamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        videoRef.current.setAttribute('playsinline', 'true');
+        await videoRef.current.play();
+      }
+      setIsCameraActive(true);
+      requestScanFrame();
+    } catch (err: any) {
+      setCameraError(err?.message || 'Failed to access camera. Please check permissions.');
+      setIsCameraActive(false);
+    }
+  };
+
+  const requestScanFrame = () => {
+    scanAnimFrameRef.current = requestAnimationFrame(() => {
+      const video = videoRef.current;
+      const canvas = canvasRef.current;
+      if (!video || !canvas || video.readyState !== video.HAVE_ENOUGH_DATA) {
+        if (scanStreamRef.current) {
+          requestScanFrame();
+        }
+        return;
+      }
+
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const code = jsQR(imageData.data, imageData.width, imageData.height, {
+        inversionAttempts: 'dontInvert',
+      });
+
+      if (code && code.data) {
+        stopCameraScan();
+        const payload = code.data.trim();
+        const match = payload.match(/([A-Za-z0-9]+-[A-Za-z0-9]+)/);
+        const codeToValidate = match ? match[1] : payload;
+        setScannedCodeInput(codeToValidate);
+        handleValidateCoupon(codeToValidate);
+      } else {
+        requestScanFrame();
+      }
+    });
+  };
+
+  useEffect(() => {
+    if (!showScannerModal) {
+      stopCameraScan();
+      setScanResult(null);
+    }
+    return () => {
+      stopCameraScan();
+    };
+  }, [showScannerModal]);
 
   const handleValidateCoupon = (code: string) => {
     const clean = code.trim().toUpperCase();
@@ -367,10 +463,10 @@ export const CaptainLayout: React.FC = () => {
                     )}
                   </div>
 
-                  {/* Bottom: Status Pill */}
-                  <div className="flex items-center justify-between">
+                  {/* Bottom: Status Pill & Spin Winner */}
+                  <div className="flex items-center justify-between gap-1 mt-1">
                     <span
-                      className={`text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider ${
+                      className={`text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider shrink-0 ${
                         t.status === 'occupied' || (session && t.status !== 'bill_requested' && t.status !== 'paid_pending_reset')
                           ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
                           : t.status === 'bill_requested'
@@ -382,6 +478,12 @@ export const CaptainLayout: React.FC = () => {
                     >
                       {t.status === 'available' && session ? 'occupied' : t.status.replace(/_/g, ' ')}
                     </span>
+                    {session?.spinStatus === 'completed' && session?.spinReward && (
+                      <span className="text-[9px] font-bold text-amber-300 bg-amber-500/20 border border-amber-500/40 px-1 py-0.5 rounded truncate flex items-center gap-0.5" title={`Spin Winner: ${session.spinReward.label}`}>
+                        <Sparkles className="w-2.5 h-2.5 text-amber-400 shrink-0" />
+                        <span className="truncate">{session.spinReward.label}</span>
+                      </span>
+                    )}
                   </div>
                 </button>
               );
@@ -413,21 +515,37 @@ export const CaptainLayout: React.FC = () => {
                     </span>
                   </div>
                   {selectedSession ? (
-                    <div className="mt-1 flex items-center space-x-2">
-                      <p className="text-xs text-slate-300">
-                        Host: <span className="font-semibold text-white">{selectedSession.hostName}</span> (
-                        {selectedSession.hostPhone})
-                      </p>
-                      <button
-                        onClick={() => {
-                          setReassignName(selectedSession.hostName);
-                          setReassignPhone(selectedSession.hostPhone);
-                          setShowReassignModal(true);
-                        }}
-                        className="text-[10px] text-amber-400 hover:text-amber-300 underline font-medium"
-                      >
-                        Reassign Host
-                      </button>
+                    <div className="mt-1 space-y-1">
+                      <div className="flex items-center space-x-2">
+                        <p className="text-xs text-slate-300">
+                          Host: <span className="font-semibold text-white">{selectedSession.hostName}</span> (
+                          {selectedSession.hostPhone})
+                        </p>
+                        <button
+                          onClick={() => {
+                            setReassignName(selectedSession.hostName);
+                            setReassignPhone(selectedSession.hostPhone);
+                            setShowReassignModal(true);
+                          }}
+                          className="text-[10px] text-amber-400 hover:text-amber-300 underline font-medium"
+                        >
+                          Reassign Host
+                        </button>
+                      </div>
+                      {selectedSession.spinStatus === 'completed' && selectedSession.spinReward ? (
+                        <div className="inline-flex items-center space-x-1.5 px-2 py-0.5 bg-amber-500/20 border border-amber-500/40 rounded text-xs font-semibold text-amber-300">
+                          <Sparkles className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                          <span>Spin Reward: <strong className="text-white">{selectedSession.spinReward.label}</strong></span>
+                          {selectedSession.spinWinnerName && (
+                            <span className="text-[10px] text-amber-300/80">({selectedSession.spinWinnerName})</span>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="inline-flex items-center space-x-1 px-2 py-0.5 bg-slate-800/80 border border-slate-700/60 rounded text-[10px] text-slate-400">
+                          <Sparkles className="w-3 h-3 text-amber-400/60 shrink-0" />
+                          <span>Spin &amp; Win: Available</span>
+                        </div>
+                      )}
                     </div>
                   ) : (
                     <p className="text-xs text-slate-500 mt-1">No active diner session</p>
@@ -1210,40 +1328,256 @@ export const CaptainLayout: React.FC = () => {
       {/* Offer / Coupon QR Scanner Modal (Section 11) */}
       {showScannerModal && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-5 space-y-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-5 space-y-4 max-h-[90vh] overflow-y-auto">
+            {/* Header */}
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-2">
                 <QrCode className="w-5 h-5 text-amber-400" />
-                <h3 className="text-base font-bold text-white">Voucher Redemption Scanner</h3>
+                <h3 className="text-base font-bold text-white">Voucher Redemption Console</h3>
               </div>
-              <button onClick={() => setShowScannerModal(false)} className="text-slate-400 hover:text-white">
+              <button
+                onClick={() => {
+                  stopCameraScan();
+                  setShowScannerModal(false);
+                }}
+                className="text-slate-400 hover:text-white"
+              >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <p className="text-xs text-slate-400">
-              Enforces restaurant isolation: Vouchers from other restaurants will be rejected immediately.
-            </p>
-
-            <div>
-              <label className="text-xs text-slate-300 font-semibold mb-1 block">Enter or Scan Voucher Code</label>
-              <div className="flex space-x-2">
-                <input
-                  type="text"
-                  value={scannedCodeInput}
-                  onChange={(e) => setScannedCodeInput(e.target.value)}
-                  placeholder="e.g. HRTG-8F42K or HRTG-WELCOME10"
-                  className="flex-1 bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white uppercase font-mono"
-                />
-                <button
-                  onClick={() => handleValidateCoupon(scannedCodeInput)}
-                  className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold px-3 py-2 rounded-lg text-xs"
-                >
-                  Verify
-                </button>
-              </div>
+            {/* Mode Switcher Tabs */}
+            <div className="flex bg-slate-950 p-1 rounded-xl border border-slate-800">
+              <button
+                onClick={() => {
+                  setScannerTab('code');
+                }}
+                className={`flex-1 py-1.5 rounded-lg text-xs font-semibold flex items-center justify-center space-x-1.5 transition-colors ${
+                  scannerTab === 'code'
+                    ? 'bg-amber-500 text-slate-950 font-bold'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                <QrCode className="w-3.5 h-3.5" />
+                <span>Scan / Code</span>
+              </button>
+              <button
+                onClick={() => {
+                  stopCameraScan();
+                  setScannerTab('phone');
+                }}
+                className={`flex-1 py-1.5 rounded-lg text-xs font-semibold flex items-center justify-center space-x-1.5 transition-colors ${
+                  scannerTab === 'phone'
+                    ? 'bg-amber-500 text-slate-950 font-bold'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                <Phone className="w-3.5 h-3.5" />
+                <span>Search by Phone</span>
+              </button>
             </div>
 
+            {scannerTab === 'code' ? (
+              <div className="space-y-3">
+                {/* Camera QR Scanner Viewport */}
+                <div className="bg-slate-950 rounded-xl p-3 border border-slate-800 flex flex-col items-center justify-center">
+                  <canvas ref={canvasRef} className="hidden" />
+
+                  {isCameraActive ? (
+                    <div className="w-full relative rounded-lg overflow-hidden bg-black aspect-video flex items-center justify-center">
+                      <video
+                        ref={videoRef}
+                        className="w-full h-full object-cover"
+                        playsInline
+                        muted
+                      />
+                      {/* Scanning Reticle Frame */}
+                      <div className="absolute inset-0 border-2 border-amber-500/50 rounded-lg pointer-events-none flex items-center justify-center">
+                        <div className="w-32 h-32 border-2 border-amber-400 border-dashed rounded-lg animate-pulse" />
+                      </div>
+                      <div className="absolute bottom-2 inset-x-2 text-center text-[10px] bg-black/70 text-amber-300 py-1 px-2 rounded backdrop-blur-sm font-semibold">
+                        Point camera at diner's voucher QR code
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-center py-4 space-y-2">
+                      <div className="w-12 h-12 rounded-full bg-slate-900 border border-slate-700 flex items-center justify-center mx-auto text-amber-400">
+                        <Camera className="w-6 h-6" />
+                      </div>
+                      <p className="text-xs text-slate-400">
+                        Scan customer QR code directly with your device camera
+                      </p>
+                    </div>
+                  )}
+
+                  {cameraError && (
+                    <p className="text-[11px] text-rose-400 mt-2 text-center font-medium">
+                      {cameraError}
+                    </p>
+                  )}
+
+                  <button
+                    onClick={isCameraActive ? stopCameraScan : startCameraScan}
+                    className={`mt-3 w-full py-2 px-3 rounded-lg text-xs font-bold flex items-center justify-center space-x-2 transition-colors ${
+                      isCameraActive
+                        ? 'bg-rose-950/60 hover:bg-rose-900 border border-rose-800 text-rose-200'
+                        : 'bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white'
+                    }`}
+                  >
+                    {isCameraActive ? (
+                      <>
+                        <CameraOff className="w-4 h-4" />
+                        <span>Stop Camera Scanner</span>
+                      </>
+                    ) : (
+                      <>
+                        <Camera className="w-4 h-4 text-amber-400" />
+                        <span>Open Camera QR Scanner</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                {/* Manual Code Entry */}
+                <div>
+                  <label className="text-xs text-slate-300 font-semibold mb-1 block">
+                    Or Enter Voucher Code
+                  </label>
+                  <div className="flex space-x-2">
+                    <input
+                      type="text"
+                      value={scannedCodeInput}
+                      onChange={(e) => setScannedCodeInput(e.target.value)}
+                      placeholder="e.g. HRTG-8F42K or HRTG-REV15"
+                      className="flex-1 bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white uppercase font-mono"
+                    />
+                    <button
+                      onClick={() => handleValidateCoupon(scannedCodeInput)}
+                      className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold px-3 py-2 rounded-lg text-xs"
+                    >
+                      Verify
+                    </button>
+                  </div>
+                </div>
+
+                {/* Quick Sample Codes */}
+                <div className="bg-slate-950 p-2.5 rounded-xl border border-slate-800">
+                  <p className="text-[11px] font-semibold text-slate-400 mb-1">
+                    Quick Testing Samples:
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {unifiedCoupons.slice(0, 3).map((c) => (
+                      <button
+                        key={c.id}
+                        onClick={() => {
+                          setScannedCodeInput(c.voucherCode);
+                          handleValidateCoupon(c.voucherCode);
+                        }}
+                        className="text-[10px] font-mono bg-slate-900 hover:bg-slate-800 text-slate-200 px-2 py-0.5 rounded border border-slate-700"
+                      >
+                        {c.voucherCode} ({c.rewardLabel.slice(0, 15)})
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              /* Search by Phone Tab */
+              <div className="space-y-3">
+                <div>
+                  <label className="text-xs text-slate-300 font-semibold mb-1 block">
+                    Diner Phone Number Search
+                  </label>
+                  <div className="relative">
+                    <Search className="w-4 h-4 text-slate-500 absolute left-3 top-2.5" />
+                    <input
+                      type="text"
+                      value={phoneSearchQuery}
+                      onChange={(e) => setPhoneSearchQuery(e.target.value)}
+                      placeholder="Enter diner phone number e.g. 98765..."
+                      className="w-full bg-slate-950 border border-slate-700 rounded-lg pl-9 pr-3 py-2 text-xs text-white font-mono"
+                    />
+                  </div>
+                </div>
+
+                {/* Coupons List by Phone */}
+                <div className="space-y-2 max-h-60 overflow-y-auto">
+                  {unifiedCoupons
+                    .filter(
+                      (c) =>
+                        c.restaurantId === activeRestaurant.id &&
+                        (!phoneSearchQuery.trim() ||
+                          c.customerPhone.includes(phoneSearchQuery.trim()))
+                    )
+                    .slice(0, 8)
+                    .map((c) => {
+                      const isEligible = c.status === 'held' && c.slot !== 'queued';
+                      return (
+                        <div
+                          key={c.id}
+                          className="bg-slate-950 p-2.5 rounded-xl border border-slate-800 flex items-center justify-between"
+                        >
+                          <div className="min-w-0 pr-2">
+                            <div className="flex items-center space-x-1.5">
+                              <span className="font-mono text-xs font-bold text-amber-300">
+                                {c.voucherCode}
+                              </span>
+                              <span
+                                className={`text-[9px] px-1.5 py-0.2 rounded font-semibold ${
+                                  c.status === 'redeemed'
+                                    ? 'bg-slate-800 text-slate-400'
+                                    : c.slot === 'queued'
+                                    ? 'bg-blue-900/40 text-blue-300'
+                                    : 'bg-emerald-900/40 text-emerald-300'
+                                }`}
+                              >
+                                {c.status === 'redeemed'
+                                  ? 'Redeemed'
+                                  : c.slot === 'queued'
+                                  ? 'Next Visit'
+                                  : 'Active'}
+                              </span>
+                            </div>
+                            <p className="text-xs text-slate-200 font-medium truncate mt-0.5">
+                              {c.rewardLabel}
+                            </p>
+                            <p className="text-[10px] text-slate-500 font-mono">
+                              Phone: {c.customerPhone}
+                            </p>
+                          </div>
+                          <button
+                            onClick={() => {
+                              setScannedCodeInput(c.voucherCode);
+                              handleValidateCoupon(c.voucherCode);
+                            }}
+                            disabled={!isEligible}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-bold shrink-0 transition-colors ${
+                              isEligible
+                                ? 'bg-amber-500 hover:bg-amber-400 text-slate-950'
+                                : 'bg-slate-800 text-slate-500 cursor-not-allowed'
+                            }`}
+                          >
+                            Redeem
+                          </button>
+                        </div>
+                      );
+                    })}
+
+                  {unifiedCoupons.filter(
+                    (c) =>
+                      c.restaurantId === activeRestaurant.id &&
+                      (!phoneSearchQuery.trim() ||
+                        c.customerPhone.includes(phoneSearchQuery.trim()))
+                  ).length === 0 && (
+                    <div className="py-6 text-center text-xs text-slate-500">
+                      No matching coupons found for this phone number.
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Validation Feedback Banner */}
             {scanResult && (
               <div
                 className={`p-3 rounded-xl text-xs font-semibold ${
@@ -1255,24 +1589,6 @@ export const CaptainLayout: React.FC = () => {
                 {scanResult}
               </div>
             )}
-
-            <div className="bg-slate-950 p-3 rounded-xl border border-slate-800">
-              <p className="text-[11px] font-semibold text-slate-400 mb-1">Quick Sample Codes for Testing:</p>
-              <div className="flex flex-wrap gap-1.5">
-                {unifiedCoupons.slice(0, 3).map((c) => (
-                  <button
-                    key={c.id}
-                    onClick={() => {
-                      setScannedCodeInput(c.voucherCode);
-                      handleValidateCoupon(c.voucherCode);
-                    }}
-                    className="text-[10px] font-mono bg-slate-900 hover:bg-slate-800 text-slate-200 px-2 py-0.5 rounded border border-slate-700"
-                  >
-                    {c.voucherCode} ({c.rewardLabel.slice(0, 15)})
-                  </button>
-                ))}
-              </div>
-            </div>
           </div>
         </div>
       )}

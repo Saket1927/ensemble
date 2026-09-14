@@ -15,6 +15,7 @@ export const CustomerMenu: React.FC = () => {
     activeRestaurant,
     activeMenuItems,
     activeTable,
+    activeTables,
     placeCustomerOrder,
     orders,
     currentTableSession,
@@ -87,7 +88,9 @@ export const CustomerMenu: React.FC = () => {
   const tableOrders = orders.filter(
     (o) => (o.restaurantId ? o.restaurantId === activeRestaurant.id : true) && o.tableNumber === activeTable && o.status !== 'cancelled'
   );
-  const hasLiveTab = tableOrders.length > 0 || !!currentTableSession;
+  const currentTableRecord = activeTables.find((t) => t.tableNumber === activeTable);
+  const isTableCleared = currentTableRecord?.status === 'available' && tableOrders.length === 0;
+  const hasLiveTab = !isTableCleared && (tableOrders.length > 0 || !!currentTableSession);
 
   const handlePlaceOrder = () => {
     if (cartList.length === 0) return;

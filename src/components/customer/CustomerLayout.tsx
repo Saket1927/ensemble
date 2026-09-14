@@ -8,6 +8,7 @@ import {
   Share2,
   Sparkles,
   Users,
+  CheckCircle2,
 } from 'lucide-react';
 import { CustomerHome } from './CustomerHome';
 import { CustomerMenu } from './CustomerMenu';
@@ -26,12 +27,16 @@ export const CustomerLayout: React.FC = () => {
   const {
     activeRestaurant,
     activeTable,
+    activeTables,
     customerActiveTab,
     setCustomerActiveTab,
     customerWallet,
     canSpin,
     unlockedExtraSpins,
   } = useTenant();
+
+  const currentTableRecord = activeTables.find((t) => t.tableNumber === activeTable);
+  const isDiningComplete = currentTableRecord?.status === 'paid_pending_reset';
 
   const [isSpinModalOpen, setIsSpinModalOpen] = useState(false);
   const [isReferralModalOpen, setIsReferralModalOpen] = useState(false);
@@ -105,6 +110,24 @@ export const CustomerLayout: React.FC = () => {
           )}
         </div>
       </header>
+
+      {/* Post-Dining Settle Notice */}
+      {isDiningComplete && (
+        <div className="bg-emerald-900 text-emerald-100 px-4 py-2.5 flex items-center justify-between border-b border-emerald-700/60 shadow">
+          <div className="flex items-center space-x-2">
+            <CheckCircle2 className="w-4 h-4 text-emerald-300 shrink-0" />
+            <span className="text-xs font-semibold">
+              Dining Complete • Bill Settled. Thank you for dining with us!
+            </span>
+          </div>
+          <button
+            onClick={() => setCustomerActiveTab('reviews')}
+            className="text-[11px] font-bold bg-amber-400 hover:bg-amber-300 text-slate-950 px-2.5 py-1 rounded shadow ml-2 shrink-0 transition-colors"
+          >
+            Leave Review
+          </button>
+        </div>
+      )}
 
       {/* Main Content View by Active Tab */}
       <main className="flex-1 pb-24">
